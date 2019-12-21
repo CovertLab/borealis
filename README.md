@@ -1,2 +1,2 @@
 # borealis
- run FireWorks workflow in Google Cloud
+Run FireWorks workflow in Google Cloud.
