@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Set up the machine to run as a Borealis worker. Then you can stop the VM and
-# make a GCE disk image from its disk, starting a new disk image family.
+# Set up the machine to run as a Borealis worker.
 #
 ### TODO: This is not finished or tested! ###
 ### TODO: Configure auth stuff via GCE VM creation parameters? ###
+### Once fully created, stop the VM and make a GCE disk image from its disk,
+###   e.g. called "fireworker-v0" in the disk image family "fireworker".
 
 set -eu
 
@@ -16,9 +17,6 @@ apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
 adduser fireworker
 su -l fireworker
 cd
-# A logs directory for FireWorks:
-set LOGS=/home/fireworker/fw/logs/launchpad
-mkdir -p "${LOGS}"
 
 curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
 echo 'export PATH="/home/fireworker/.pyenv/bin:$PATH"' >> ~/.bash_aliases
@@ -37,10 +35,8 @@ pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clo
 pip install -r requirements.txt
 pyenv rehash
 
-# Set up my_launchpad.yaml  # TODO: Make the Python app do the equivalent configuration?
-# TODO: Set `logdir: ${LOGS}` in my_launchpad.yaml.
-echo Set the FireWorks configuration to access your MongoDB instance.
-lpad init
+cp example_my_launchpad.yaml my_launchpad.yaml
+echo Edit my_launchpad.yaml to access your MongoDB instance.
 
 gcloud auth activate-service-account sisyphus@allen-discovery-center-mcovert.iam.gserviceaccount.com --key-file ~/.cloud.json
 gcloud auth configure-docker

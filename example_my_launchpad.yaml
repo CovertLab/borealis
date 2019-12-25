@@ -1,0 +1,8 @@
+# Example launchpad config. Be sure to set the MongoDB host and port.
+host: localhost
+port: 27017
+username: null
+password: null
+name: default_fireworks_database
+# logdir: null
+strm_lvl: INFO
