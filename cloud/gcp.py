@@ -34,6 +34,12 @@ def gce_instance_metadata(field, default=None):
     """Get a Google Compute Engine VM instance metadata field like the "name",
     "zone", or "attributes/db" for a metadata field "db". On failure (e.g.
     ConnectionError when not running on GCE) print a message and return `default`.
+
+    "attributes/*" metadata fields can be set when creating an instance:
+    `gcloud compute instances create worker --metadata db=fred ...`
+
+    and set or changed on a running instance:
+    `gcloud compute instances add-metadata instance-name --metadata db=ginger`
     """
     url = "http://metadata.google.internal/computeMetadata/v1/instance/{}".format(field)
     headers = {'Metadata-Flavor': 'Google'}

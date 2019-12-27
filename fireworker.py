@@ -63,7 +63,7 @@ def launch_rockets(launchpad, fireworker, strm_lvl=None):
             idle_seconds += sleep_secs
 
 
-def main(delete_this_vm=True):
+def main(development=False):
     # type: (bool) -> None
     """Run as a FireWorks worker node on Google Compute Engine (GCE), launching
     Fireworks rockets in rapidfire mode then deleting this GCE VM instance.
@@ -86,8 +86,6 @@ def main(delete_this_vm=True):
 
     The DB username and password are needed if MongoDB is set up to require
     authentication, and it could use shared or user-specific accounts.
-
-    To aid testing off GCE, ...
     """
     with open(LAUNCHPAD_FILE) as f:
         lpad_config = yaml.safe_load(f)  # type: dict
@@ -119,7 +117,7 @@ def main(delete_this_vm=True):
 
     launch_rockets(launchpad, fireworker, strm_lvl=lpad_config.get('strm_lvl'))
 
-    if delete_this_vm:
+    if not development:
         gcp.delete_this_vm()
 
 
@@ -130,11 +128,12 @@ def cli():
                     ' Gets configuration settings from GCE and my_launchpad.yaml,'
                     ' with fallbacks.')
     parser.add_argument(
-        '--no-delete', action='store_false', dest='delete',
-        help="Don't delete this GCE VM instance when done. Useful for testing.")
+        '--development', action='store_true',
+        help="Development mode: When done, just exit Python without deleting"
+             " this GCE VM worker instance.")
 
     args = parser.parse_args()
-    main(delete_this_vm=args.delete)
+    main(development=args.delete)
 
 
 if __name__ == '__main__':
