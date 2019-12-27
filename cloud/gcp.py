@@ -66,9 +66,11 @@ def delete_this_vm():
     (if not already shut down) maybe allowing cleanup actions to run.
     """
     name = gce_instance_name()
+    zone = gce_zone()
     if name:
         print('GCE VM "{}" shutting down...'.format(name))
-        fp.run_cmd(['gcloud', 'compute', 'instances', 'delete', name])
+        fp.run_cmd(['gcloud', '--quiet', 'compute', 'instances', 'delete',
+                    name, '--zone', zone])
     else:
         print('Exiting (not running on GCE).')
     sys.exit()
