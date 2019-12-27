@@ -43,3 +43,4 @@ echo Edit my_launchpad.yaml to access your MongoDB instance.
 gcloud auth activate-service-account sisyphus@allen-discovery-center-mcovert.iam.gserviceaccount.com --key-file ~/.cloud.json
 gcloud auth configure-docker
 cat .cloud.json | docker login -u _json_key --password-stdin https://gcr.io
+### TODO: Get a .cloud.json file for the fireworker user. Also re-run `gcloud init`? `gcloud auth login`?
