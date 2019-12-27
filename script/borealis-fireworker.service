@@ -1,0 +1,21 @@
+# Copy this file to /etc/systemd/system/borealis-fireworker.service
+# man systemd.service; man systemd.exec
+#
+# then:
+#   > sudo systemctl start borealis-fireworker
+#   > sudo systemctl enable borealis-fireworker
+
+[Unit]
+Description=A FireWorks worker on Google Compute Engine
+Documentation=https://github.com/1fish2/borealis
+After=networking.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /home/fireworker/borealis/script/boot.sh
+User=fireworker
+Group=fireworker
+Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/fireworker/.cloud.json
+
+[Install]
+WantedBy=multi-user.target

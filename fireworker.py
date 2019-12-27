@@ -23,8 +23,9 @@ LAUNCHPAD_FILE = 'my_launchpad.yaml'
 DEFAULT_LOGDIR = os.path.join(os.getcwd(), 'logs', 'worker')
 
 
-# TODO(jerry): a Firetask that pull inputs & pushing outputs form GCS, runs the
-# target in a Docker container, and uses StackDriver logging.
+# TODO(jerry): a Firetask that pulls inputs from & pushes outputs to GCS, runs
+# the target in a Docker container, and uses StackDriver logging. Do StackDriver
+# here, too?
 
 
 def launch_rockets(launchpad, fireworker, strm_lvl=None):
@@ -116,7 +117,7 @@ def main(delete_this_vm=True):
     # configuration-specific into to the Firetasks.
     fireworker = FWorker(instance_name)
 
-    launch_rockets(launchpad, fireworker, lpad_config.get('strm_lvl'))
+    launch_rockets(launchpad, fireworker, strm_lvl=lpad_config.get('strm_lvl'))
 
     if delete_this_vm:
         gcp.delete_this_vm()
@@ -130,7 +131,7 @@ def cli():
                     ' with fallbacks.')
     parser.add_argument(
         '--no-delete', action='store_false', dest='delete',
-        help="Don't delete this GCE VM when done. A useful option for testing.")
+        help="Don't delete this GCE VM instance when done. Useful for testing.")
 
     args = parser.parse_args()
     main(delete_this_vm=args.delete)

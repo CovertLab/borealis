@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Set up the machine to run as a Borealis worker.
+# Set up the machine to run as a Borealis Fireworker.
 #
-### TODO: This is not finished or tested! ###
+### TODO: This is not tested and not finished! ###
 ### TODO: Configure auth stuff via GCE VM creation parameters? ###
+### TODO: Document where to get the .cloud.json file containing Google application credentials,
+### the service account, and the scopes (for the script that creates this VM instance). ###
 ### Once fully created, stop the VM and make a GCE disk image from its disk,
 ###   e.g. called "fireworker-v0" in the disk image family "fireworker".
 
