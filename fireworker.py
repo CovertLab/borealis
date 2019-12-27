@@ -20,7 +20,7 @@ from util import filepath as fp
 LAUNCHPAD_FILE = 'my_launchpad.yaml'
 
 # Default directory for FireWorks logs.
-DEFAULT_LOGDIR = os.path.join(os.getcwd(), 'logs', 'worker')
+DEFAULT_LOGDIR = os.path.join(os.environ.get('HOME', os.getcwd()), 'logs', 'worker')
 
 
 # TODO(jerry): a Firetask that pulls inputs from & pushes outputs to GCS, runs
