@@ -26,7 +26,8 @@ def gcp_project():
 def gce_zone():
     # type: () -> str
     """Get the current Google Compute Engine (GCE) zone."""
-    return gce_instance_metadata('zone') or gcloud_get_config('compute/zone')
+    zone_metadata = gce_instance_metadata('zone', '').split('/')[-1]
+    return zone_metadata or gcloud_get_config('compute/zone')
 
 
 def gce_instance_metadata(field, default=None):
