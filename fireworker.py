@@ -133,7 +133,7 @@ def cli():
              " this GCE VM worker instance.")
 
     args = parser.parse_args()
-    main(development=args.delete)
+    main(development=args.development)
 
 
 if __name__ == '__main__':
