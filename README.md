@@ -3,7 +3,8 @@
 Runs [FireWorks workflows](https://materialsproject.github.io/fireworks/) on
 [Google Compute Engine](https://cloud.google.com/compute/) (GCE).
 
-See the repo [Borealis](https://github.com/1fish2/borealis).
+See the repo [Borealis](https://github.com/CovertLab/borealis)
+(formerly [Borealis](https://github.com/1fish2/borealis)).
 
 * _Borealis_ is the git repo name.
 * _fireworker_ is the descriptive name, process username, and home directory name.
