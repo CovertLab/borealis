@@ -7,7 +7,7 @@
 
 [Unit]
 Description=A FireWorks worker on Google Compute Engine
-Documentation=https://github.com/1fish2/borealis
+Documentation=https://github.com/CovertLab/borealis
 After=networking.service
 
 [Service]
