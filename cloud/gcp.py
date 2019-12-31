@@ -79,9 +79,9 @@ def delete_this_vm():
 
     if name:
         print('Deleting GCE VM "{}"...'.format(name))
-        zone = zone()
+        my_zone = zone()
         fp.run_cmd(['gcloud', '--quiet', 'compute', 'instances', 'delete',
-                    name, '--zone', zone])
+                    name, '--zone', my_zone])
     else:
         print('Exiting (not running on GCE).')
 
