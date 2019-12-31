@@ -13,6 +13,7 @@
 FireWorks==1.9.5
 requests==2.22.0
 ruamel.yaml==0.16.5
+subprocess32==3.5.4
 
 ## The following requirements were added by pip freeze:
 certifi==2019.11.28

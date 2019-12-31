@@ -25,6 +25,8 @@ sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev \
     libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
 
+### NOTE: This is a good time to `sudo reboot`.
+
 sudo adduser fireworker
 sudo su -l fireworker
 cd
@@ -50,7 +52,7 @@ pip install -r requirements.txt
 pyenv rehash
 
 cp example_my_launchpad.yaml my_launchpad.yaml
-echo Edit my_launchpad.yaml to access your MongoDB instance and set a logdir to enable Fireworks logging.
+echo TO DO: Edit my_launchpad.yaml to access your MongoDB instance and set a logdir to enable Fireworks logging.
 
 gcloud iam service-accounts keys create ~/.cloud.json --iam-account "fireworker@${PROJECT}.iam.gserviceaccount.com"
 echo '' >> ~/.profile
@@ -61,4 +63,9 @@ cat .cloud.json | docker login -u _json_key --password-stdin https://gcr.io
 ### TODO: Re-run `gcloud init`? `gcloud auth login`?
 
 echo
-echo Follow the instructions in borealis-fireworker.service to set up the systemd service.
+echo TO DO: Follow the instructions in borealis-fireworker.service to set up the systemd service.
+
+echo TO DO: Make a disk image, starting the disk image family "fireworker".
+### To make a disk image, run `sudo shutdown -h now`, wait for the GCE VM to stop, then find the
+### disk on the Google Compute Engine > Images page, click CREATE IMAGE, and fill in the form.
+###     Family: fireworker      # <=== MUST SET THIS ===

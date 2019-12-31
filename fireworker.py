@@ -6,11 +6,13 @@ from __future__ import absolute_import, division, print_function
 import argparse
 import os
 import time
+import traceback
 
 from fireworks import LaunchPad, FWorker
 from fireworks.core import rocket_launcher
+from fireworks.utilities import fw_utilities
 import ruamel.yaml as yaml
-from typing import Optional
+from typing import Any, Dict
 
 from cloud import gcp
 from util import filepath as fp
@@ -28,39 +30,73 @@ DEFAULT_LOGDIR = os.path.join(os.environ.get('HOME', os.getcwd()), 'logs', 'work
 # here, too?
 
 
-def launch_rockets(launchpad, fireworker, strm_lvl=None):
-    # type: (LaunchPad, FWorker, Optional[str]) -> None
-    """Keep launching rockets that are ready to go, idling up to 60m for waiting
-    rockets to become ready or 15m if none are even waiting.
-    """
-    strm_lvl = strm_lvl or 'INFO'
+class Fireworker(object):
 
-    sleep_secs = 10
-    idle_for_waiters = 60 * 60
-    idle_for_queued = 15 * 60
+    def __init__(self, lpad_config, instance_name):
+        # type: (Dict[str, Any], str) -> None
+        self.lpad_config = lpad_config
+        self.strm_lvl = lpad_config.get('strm_lvl') or 'INFO'
+        self.instance_name = instance_name
 
-    # rapidfire() launches READY rockets until: `max_loops` batches of READY
-    # rockets OR `timeout` total elapsed seconds OR `nlaunches` rockets launched
-    # OR `nlaunches` == 0 ("until completion", the default) AND no rockets are
-    # even waiting.
-    #
-    # Set max_loops so it won't loop forever and we can track idle time.
-    #
-    # TODO(jerry): Set m_dir? local_redirect?
-    while True:
-        rocket_launcher.rapidfire(
-            launchpad, fireworker, strm_lvl=strm_lvl, max_loops=1,
-            sleep_time=sleep_secs)
-        idle_seconds = sleep_secs  # rapidfire() just slept once
+        self.sleep_secs = 10
+        self.idle_for_waiters = 60 * 60
+        self.idle_for_queued = 15 * 60
 
-        while not launchpad.run_exists(fireworker):  # none are ready to run
-            future_work = launchpad.future_run_exists(fireworker)  # any waiting?
-            if idle_seconds >= (idle_for_waiters if future_work else idle_for_queued):
-                return
+        self.launchpad = LaunchPad(**lpad_config)
 
-            print('Sleeping for {} secs waiting for tasks to run'.format(sleep_secs))
-            time.sleep(sleep_secs)
-            idle_seconds += sleep_secs
+        # TODO(jerry): Adopt StackDriver logging here? Redirect FireWorks logging?
+        self.logger = fw_utilities.get_fw_logger(
+            'fireworker',
+            l_dir=self.launchpad.get_logdir(),
+            stream_level=self.strm_lvl)
+
+        # Could optionally set a specific `category` of jobs to pull, a `query`
+        # to restrict the type of Fireworks to run, and an `env` to pass
+        # worker-specific into to the Firetasks.
+        self.fireworker = FWorker(instance_name)
+
+    def launch_rockets(self):
+        # type: () -> None
+        """Launch rockets, logging exceptions."""
+        try:
+            self._launch_rockets()
+        except KeyboardInterrupt as e:
+            fw_utilities.log_multi(self.logger, repr(e), 'error')
+        except Exception:
+            fw_utilities.log_exception(self.logger, 'fireworker error')
+
+    def _launch_rockets(self):
+        # type: () -> None
+        """Keep launching rockets that are ready to go, idling up to
+        idle_for_waiters for waiting rockets to become ready or idle_for_queued
+        if none are even waiting, then return.
+        """
+
+        # rapidfire() launches READY rockets until: `max_loops` batches of READY
+        # rockets OR `timeout` total elapsed seconds OR `nlaunches` rockets launched
+        # OR `nlaunches` == 0 ("until completion", the default) AND no rockets are
+        # even waiting.
+        #
+        # Set max_loops so it won't loop forever and we can track idle time.
+        #
+        # TODO(jerry): Set m_dir? local_redirect?
+        while True:
+            rocket_launcher.rapidfire(
+                self.launchpad, self.fireworker, strm_lvl=self.strm_lvl,
+                max_loops=1, sleep_time=self.sleep_secs)
+
+            # Idle to the max.
+            idled = self.sleep_secs  # rapidfire() just slept once
+            while not self.launchpad.run_exists(self.fireworker):  # none ready to run
+                future_work = self.launchpad.future_run_exists(self.fireworker)  # any waiting?
+                if idled >= (self.idle_for_waiters if future_work else self.idle_for_queued):
+                    return
+
+                fw_utilities.log_multi(
+                    self.logger,
+                    'Sleeping for {} secs waiting for tasks to run'.format(self.sleep_secs))
+                time.sleep(self.sleep_secs)
+                idled += self.sleep_secs
 
 
 def main(development=False):
@@ -91,13 +127,13 @@ def main(development=False):
         lpad_config = yaml.safe_load(f)  # type: dict
 
     instance_name = gcp.gce_instance_name() or 'fireworker'
-    db_name = (gcp.gce_instance_metadata('attributes/db')
+    db_name = (gcp.instance_metadata('attributes/db')
                or lpad_config.get('name', 'default_fireworks_database'))
     lpad_config['name'] = db_name
 
-    username = (gcp.gce_instance_metadata('attributes/username')
+    username = (gcp.instance_metadata('attributes/username')
                 or lpad_config.get('username'))
-    password = (gcp.gce_instance_metadata('attributes/password')
+    password = (gcp.instance_metadata('attributes/password')
                 or lpad_config.get('password'))
     lpad_config['username'] = username
     lpad_config['password'] = password
@@ -108,14 +144,11 @@ def main(development=False):
 
     print('\nFireworker config: {}\n'.format(lpad_config))
 
-    launchpad = LaunchPad(**lpad_config)
-
-    # Could optionally set a specific `category` of jobs to pull, a `query` to
-    # restrict the type of Fireworks to run, and `env` to pass
-    # configuration-specific into to the Firetasks.
-    fireworker = FWorker(instance_name)
-
-    launch_rockets(launchpad, fireworker, strm_lvl=lpad_config.get('strm_lvl'))
+    try:
+        fireworker = Fireworker(lpad_config, instance_name)
+        fireworker.launch_rockets()
+    except Exception:
+        print('\nfireworker error: {}'.format(traceback.format_exc()))
 
     if not development:
         gcp.delete_this_vm()
