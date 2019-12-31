@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 """A Fireworks worker on Google Compute Engine to "rapidfire" launch rockets."""
 
+# TODO(jerry): Investigate Live Migration, Maintenance events, preemptible
+# instances, availability policies, restart behavior,
+
 from __future__ import absolute_import, division, print_function
 
 import argparse
@@ -69,7 +72,8 @@ class Fireworker(object):
         # type: () -> None
         """Keep launching rockets that are ready to go, idling up to
         idle_for_waiters for waiting rockets to become ready or idle_for_queued
-        if none are even waiting, then return.
+        if none are even waiting, or until the custom metadata field
+        attributes/quit becomes 'when-idle'.
         """
 
         # rapidfire() launches READY rockets until: `max_loops` batches of READY
@@ -90,6 +94,11 @@ class Fireworker(object):
             while not self.launchpad.run_exists(self.fireworker):  # none ready to run
                 future_work = self.launchpad.future_run_exists(self.fireworker)  # any waiting?
                 if idled >= (self.idle_for_waiters if future_work else self.idle_for_queued):
+                    return
+
+                if gcp.instance_metadata(
+                        'attributes/quit', '', complain_off_gcp=False) == 'when-idle':
+                    fw_utilities.log_multi(self.logger, 'Requested to quit when-idle')
                     return
 
                 fw_utilities.log_multi(
@@ -122,6 +131,9 @@ def main(development=False):
 
     The DB username and password are needed if MongoDB is set up to require
     authentication, and it could use shared or user-specific accounts.
+
+    This worker will stop idling if custom metadata field:
+        attributes/quit becomes 'when-idle'
     """
     with open(LAUNCHPAD_FILE) as f:
         lpad_config = yaml.safe_load(f)  # type: dict

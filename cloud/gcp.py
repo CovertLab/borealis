@@ -46,7 +46,7 @@ def instance_metadata(field, default=None, complain_off_gcp=True):
     "attributes/*" metadata fields can be set when creating a GCE instance:
     `gcloud compute instances create worker --metadata db=fred ...`
     They can be set or changed on a running instance:
-    `gcloud compute instances add-metadata instance-name --metadata db=ginger`
+    `gcloud compute instances add-metadata INSTANCE-NAME --metadata db=ginger`
     """
     url = "http://metadata.google.internal/computeMetadata/v1/instance/{}".format(field)
     headers = {'Metadata-Flavor': 'Google'}
@@ -62,12 +62,12 @@ def instance_metadata(field, default=None, complain_off_gcp=True):
         return default
 
 
-def gce_instance_name():
-    # type: () -> str
+def gce_instance_name(complain_off_gcp=True):
+    # type: (bool) -> str
     """Return this GCE VM instance name if running on GCE, or None if not
     running on GCE.
     """
-    return instance_metadata('name')
+    return instance_metadata('name', complain_off_gcp=complain_off_gcp)
 
 
 def delete_this_vm():
@@ -75,7 +75,7 @@ def delete_this_vm():
     """Ask gcloud to delete this GCE VM instance if running on GCE. In any case
     exit Python if not already shut down, and Python cleanup actions might run.
     """
-    name = gce_instance_name()
+    name = gce_instance_name(complain_off_gcp=False)
 
     if name:
         print('Deleting GCE VM "{}"...'.format(name))
