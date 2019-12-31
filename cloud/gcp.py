@@ -46,7 +46,7 @@ def instance_metadata(field, default=None, complain_off_gcp=True):
     "attributes/*" metadata fields can be set when creating a GCE instance:
     `gcloud compute instances create worker --metadata db=fred ...`
     They can be set or changed on a running instance:
-    `gcloud compute instances add-metadata INSTANCE-NAME --metadata db=ginger`
+    `gcloud compute instances add-metadata INSTANCE-NAME --metadata quit=when-idle`
     """
     url = "http://metadata.google.internal/computeMetadata/v1/instance/{}".format(field)
     headers = {'Metadata-Flavor': 'Google'}

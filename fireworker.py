@@ -132,8 +132,10 @@ def main(development=False):
     The DB username and password are needed if MongoDB is set up to require
     authentication, and it could use shared or user-specific accounts.
 
-    This worker will stop idling if custom metadata field:
-        attributes/quit becomes 'when-idle'
+    TODO: Add configuration settings for idle_for_waiters and idle_for_queued.
+
+    You can set a custom metadata field to make this worker stop idling:
+        gcloud compute instances add-metadata INSTANCE-NAME --metadata quit=when-idle
     """
     with open(LAUNCHPAD_FILE) as f:
         lpad_config = yaml.safe_load(f)  # type: dict
