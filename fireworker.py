@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 import os
+import socket
 import time
 import traceback
 
@@ -66,7 +67,7 @@ class Fireworker(object):
         except KeyboardInterrupt as e:
             fw_utilities.log_multi(self.logger, repr(e), 'error')
         except Exception:
-            fw_utilities.log_exception(self.logger, 'fireworker error')
+            fw_utilities.log_exception(self.logger, 'fireworker exception')
 
     def _launch_rockets(self):
         # type: () -> None
@@ -74,6 +75,10 @@ class Fireworker(object):
         idle_for_waiters for waiting rockets to become ready or idle_for_queued
         if none are even waiting, or until the custom metadata field
         attributes/quit becomes 'when-idle'.
+
+        There are two timeouts so idle workers give running rockets time to
+        finish work needed for queued dependent rockets and otherwise (when
+        nothing is queued up) allow some time for new work to get queued.
         """
 
         # rapidfire() launches READY rockets until: `max_loops` batches of READY
@@ -103,7 +108,7 @@ class Fireworker(object):
 
                 fw_utilities.log_multi(
                     self.logger,
-                    'Sleeping for {} secs waiting for tasks to run'.format(self.sleep_secs))
+                    'Sleeping for {} secs waiting for rockets to launch'.format(self.sleep_secs))
                 time.sleep(self.sleep_secs)
                 idled += self.sleep_secs
 
@@ -140,7 +145,7 @@ def main(development=False):
     with open(LAUNCHPAD_FILE) as f:
         lpad_config = yaml.safe_load(f)  # type: dict
 
-    instance_name = gcp.gce_instance_name() or 'fireworker'
+    instance_name = gcp.gce_instance_name() or socket.gethostname()
     db_name = (gcp.instance_metadata('attributes/db')
                or lpad_config.get('name', 'default_fireworks_database'))
     lpad_config['name'] = db_name
@@ -156,7 +161,8 @@ def main(development=False):
     if logdir:
         fp.makedirs(logdir)
 
-    print('\nFireworker config: {}\n'.format(lpad_config))
+    print('\nStarting fireworker on {} with LaunchPad config: {}\n'.format(
+        instance_name, lpad_config))
 
     try:
         fireworker = Fireworker(lpad_config, instance_name)
@@ -177,7 +183,7 @@ def cli():
     parser.add_argument(
         '--development', action='store_true',
         help="Development mode: When done, just exit Python without deleting"
-             " this GCE VM worker instance.")
+             " this GCE VM worker instance (moot when running off GCE).")
 
     args = parser.parse_args()
     main(development=args.development)
