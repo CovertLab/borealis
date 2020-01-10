@@ -15,6 +15,7 @@ def gcloud_get_config(section_property):
     tool. Raise an exception if the value is not configured (`gcloud` status
     code error) or if `gcloud` isn't installed.
     """
+    # TODO(jerry): Set the --format=... option to control the output format?
     return fp.run_cmd(['gcloud', 'config', 'get-value', str(section_property)])
 
 

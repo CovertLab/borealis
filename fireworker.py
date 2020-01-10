@@ -71,14 +71,14 @@ class Fireworker(object):
 
     def _launch_rockets(self):
         # type: () -> None
-        """Keep launching rockets that are ready to go, idling up to
-        idle_for_waiters for waiting rockets to become ready or idle_for_queued
-        if none are even waiting, or until the custom metadata field
-        attributes/quit becomes 'when-idle'.
+        """Keep launching rockets that are ready to go. Stop after:
+          * idling idle_for_waiters secs for WAITING rockets to become ready,
+          * idling idle_for_queued secs if no rockets are even waiting,
+          * the custom metadata field `attributes/quit` becomes 'when-idle'.
 
-        There are two timeouts so idle workers give running rockets time to
-        finish work needed for queued dependent rockets and otherwise (when
-        nothing is queued up) allow some time for new work to get queued.
+        The first timeout should be long enough to wait around to run queued
+        rockets after running rockets finish prerequisite work. The second
+        timeout should be long enough to let new work get queued.
         """
 
         # rapidfire() launches READY rockets until: `max_loops` batches of READY

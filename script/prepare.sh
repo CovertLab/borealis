@@ -57,6 +57,7 @@ echo TO DO: Edit my_launchpad.yaml to access your MongoDB instance and set a log
 gcloud iam service-accounts keys create ~/.cloud.json --iam-account "fireworker@${PROJECT}.iam.gserviceaccount.com"
 echo '' >> ~/.profile
 echo 'GOOGLE_APPLICATION_CREDENTIALS=/home/fireworker/.cloud.json' >> ~/.profile
+### TODO: skip the fireworker@... arg in the next line?
 gcloud auth activate-service-account fireworker@allen-discovery-center-mcovert.iam.gserviceaccount.com --key-file ~/.cloud.json
 gcloud auth configure-docker
 cat .cloud.json | docker login -u _json_key --password-stdin https://gcr.io

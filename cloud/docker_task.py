@@ -21,11 +21,6 @@ from fireworks import explicit_serialize, FiretaskBase, FWAction
 import util.filepath as fp
 
 
-#: This enables a debug feature that might get expanded application.
-#: It keeps the local outputs directory, deleting just the inputs directory.
-KEEP_OUTPUTS = True
-
-
 def uid_gid():
     """Return the Unix uid:gid (user ID, group ID) pair."""
     return '{}:{}'.format(fp.run_cmdline('id -u'), fp.run_cmdline('id -g'))
@@ -178,6 +173,34 @@ class DockerTask(FiretaskBase):
 
         return to_save
 
+    def push_to_gcs(self, to_save):
+        # type: (List[PathMapping]) -> None
+        """Push outputs to GCS."""
+        # TODO: Call the API instead of gsutil? That'll let us create the psuedo
+        #  directory placeholders needed for fast gcsfuse, but we won't get
+        #  parallel operations and retry handling for free. If we stick with
+        #  gsutil, make this more careful about which paths to upload and deal
+        #  with gsutil exit status.
+        if len(to_save) < 1:
+            return
+
+        if len(to_save) == 1:  # e.g. just a >>log file, not all of base/outputs/
+            mapping = to_save[0]
+            fp.run_cmd(['gsutil', '-m', 'cp', '-r', mapping.local, 'gs://' + mapping.storage])
+            return
+
+        local_root = os.path.join(self.LOCAL_BASEDIR, 'outputs', '*')
+        storage_prefix = self['storage_prefix']
+        fp.run_cmd(['gsutil', '-m', 'cp', '-r', local_root, 'gs://' + storage_prefix])
+
+    def pull_from_gcs(self, ins):
+        # type: (List[PathMapping]) -> None
+        """Pull inputs from GCS."""
+        # TODO(jerry): Handle errors, further parallelize, and maybe do retries.
+        for mapping in ins:
+            fp.run_cmd(['gsutil', '-m', 'cp', '-r', 'gs://' + mapping.storage, mapping.local])
+
+
     # ODDITIES ABOUT THE PYTHON DOCKER PACKAGE
     #
     # images.pull() will pull a list of images if neither arg gives a tag. We
@@ -225,6 +248,8 @@ class DockerTask(FiretaskBase):
         exit_code = -1
 
         try:
+            self.pull_from_gcs(ins)
+
             container = client.containers.run(
                 image,
                 command=self['command'],
@@ -249,7 +274,7 @@ class DockerTask(FiretaskBase):
                     print('Docker error removing a container: {}'.format(e))
 
             to_save = self._outputs_to_save(lines, exit_code == 0, outs)
-            # TODO(jerry): Push to_save to GCS.
+            self.push_to_gcs(to_save)
 
             if exit_code != 0:
                 # The task failed so skip downstream Firetasks and FireWorks.
@@ -257,8 +282,7 @@ class DockerTask(FiretaskBase):
 
         finally:
             wipe_out = self.LOCAL_BASEDIR
-            if KEEP_OUTPUTS:
-                wipe_out = os.path.join(self.LOCAL_BASEDIR, 'inputs')
+            # wipe_out = os.path.join(self.LOCAL_BASEDIR, 'inputs')
             shutil.rmtree(wipe_out, ignore_errors=True)
 
         return None
