@@ -1,36 +1,8 @@
 """A Firetask that runs a shell command in a Docker container, pulling input
 files from Google Cloud Storage (GCS) and pushing output files to GCS.
 
-TODO: Split out a GCS pull/push Firetask?
-
 TODO: An option to keep all the local files in an 'out/' directory instead of or
 in addition to writing them to a GCS bucket.
-
-Parms:
-`name` is a task name for logs and such.
-
-`image` is the Docker image to pull.
-
-`command` is the command tokens to run inside the Docker container.
-
-`inputs` and `outputs` are expressed as absolute paths internal to the Docker
-container. Their corresponding GCS storage paths will get constructed by
-rebasing each path from `internal_prefix` to `storage_prefix`, and their
-corresponding local paths outside the container will get constructed by rebasing
-each path to `local_prefix`.
-
-Each path indicates a file or (if it ends with '/') a directory tree of files to
-fetch or store.
-
-Outputs will get written to GCS if the task completes normally. An output path
-that starts with '>' will capture stdout + stderr (if the task completes
-normally), while the rest of the path gets rebased to provide the storage path.
-
-An output path that starts with '>>' will capture a log of stdout + stderr +
-other log messages like elapsed time and task exit code, even if the task fails.
-This is useful for debugging.
-
-`timeout` in seconds indicates how long to let the task run.
 """
 
 from __future__ import absolute_import, division, print_function
@@ -47,6 +19,11 @@ from docker.utils import parse_repository_tag
 from fireworks import explicit_serialize, FiretaskBase, FWAction
 
 import util.filepath as fp
+
+
+#: This enables a debug feature that might get expanded application.
+#: It keeps the local outputs directory, deleting just the inputs directory.
+KEEP_OUTPUTS = True
 
 
 def uid_gid():
@@ -78,6 +55,40 @@ def names_a_directory(path):
 class DockerTask(FiretaskBase):
     _fw_name = "DockerTask"
 
+    # Parms
+    # -----
+    # name: a task name for logs and such.
+    #
+    # image: the Docker image to pull.
+    #
+    # command: the command tokens to run inside the Docker container.
+    #
+    # internal_prefix: the base pathname inside the Docker container for inputs
+    #   and outputs.
+    #
+    # storage_prefix: the base pathname in GCS for inputs and outputs.
+    #
+    # inputs, outputs: absolute pathnames internal to the Docker container of
+    #   input/output files and directories to pull/push to GCS. DockerTask will
+    #   construct the corresponding GCS storage paths by rebasing each path from
+    #   `internal_prefix` to `storage_prefix`, and the corresponding local paths
+    #   outside the container by rebasing each path to `local_prefix`.
+    #
+    #   Each path in `inputs` and `outputs` indicates a directory tree of files
+    #   if it ends with '/', otherwise a file.
+    #
+    #   If the task completes normally, DockerTask will all its outputs to GCS.
+    #   Otherwise, it only writes '>>' log files.
+    #
+    #   An output path that starts with '>' captures stdout + stderr. The rest
+    #   of that pathname provides a pathname as if internal to the container,
+    #   which gets rebased to compute its local and storage pathnames.
+    #
+    #   An output path that starts with '>>' will capture a log of stdout +
+    #   stderr + other log messages like elapsed time and task exit code.
+    #   DockerTask will write it even if the task failed, to aid debugging.
+    #
+    # timeout: in seconds, indicates how long to let the task run.
     required_params = [
         'name',
         'image',
@@ -144,6 +155,29 @@ class DockerTask(FiretaskBase):
         return [self.setup_mount(path, os.path.join(self.LOCAL_BASEDIR, group))
                 for path in self.get(group, [])]
 
+    def _outputs_to_save(self, lines, success, outs):
+        # type: (List[str], bool, List[PathMapping]) -> List[PathMapping]
+        """Write requested stdout+stderr and log output files, then return a
+        list of all output PathMappings to save to GCS: everything if the Task
+        succeeded; just the '>>' logs if it failed.
+        """
+        to_save = []
+
+        for out in outs:
+            cap = captures(out.internal)
+            if cap:
+                try:
+                    with open(out.local, 'w') as f:
+                        # TODO(jerry): If cap = '>>', include prologue and epilogue.
+                        f.writelines(lines)
+                except IOError as e:
+                    print('Error writing to {}: {}'.format(out.internal, e))
+
+            if success or cap == '>>':
+                to_save.append(out)
+
+        return to_save
+
     # ODDITIES ABOUT THE PYTHON DOCKER PACKAGE
     #
     # images.pull() will pull a list of images if neither arg gives a tag. We
@@ -176,6 +210,7 @@ class DockerTask(FiretaskBase):
     def run_task(self, fw_spec):
         """Run a task as a shell command in a Docker container."""
         # TODO(jerry): Detect failures, pull/push to GCS, StackDriver, timeout.
+        # TODO(jerry): Push the log file to GCS even if there's a Docker error.
         print('Starting task "{}"'.format(self['name']))
 
         client = docker.from_env()
@@ -186,7 +221,7 @@ class DockerTask(FiretaskBase):
         if not tag:
             tag = 'latest'  # 'latest' is the default tag; it doesn't mean squat
         image = client.images.pull(repository, tag)
-        lines = []  # stdout+stderr
+        lines = []  # type: List[str]
         exit_code = -1
 
         try:
@@ -201,8 +236,9 @@ class DockerTask(FiretaskBase):
             try:
                 for line in container.logs(stream=True):  # TODO: Set follow=True?
                     # NOTE: Can call stream.close() to cancel from another thread.
+                    line = line.decode()
                     lines.append(line)
-                    print(line.decode().rstrip())
+                    print(line.rstrip())
 
                 exit_code = container.wait()['StatusCode']
                 print('Exit code: {}'.format(exit_code))  # TODO(jerry): Log more info
@@ -212,18 +248,17 @@ class DockerTask(FiretaskBase):
                 except docker_errors.APIError as e:
                     print('Docker error removing a container: {}'.format(e))
 
-            # TODO(jerry): Construct the '>>' log file if requested and push to GCS.
-            #  NOTE: file.writelines(lines) doesn't add newlines.
+            to_save = self._outputs_to_save(lines, exit_code == 0, outs)
+            # TODO(jerry): Push to_save to GCS.
 
             if exit_code != 0:
-                # The task failed. Skip downstream Firetasks and FireWorks.
+                # The task failed so skip downstream Firetasks and FireWorks.
                 return FWAction(exit=True, defuse_children=True)
 
-            # TODO(jerry): Write the '>' log file if requested.
-            # TODO(jerry): Push outputs back to GCS.
-
         finally:
-            shutil.rmtree(self.LOCAL_BASEDIR, ignore_errors=True)
-            # TODO(jerry): More cleanup?
+            wipe_out = self.LOCAL_BASEDIR
+            if KEEP_OUTPUTS:
+                wipe_out = os.path.join(self.LOCAL_BASEDIR, 'inputs')
+            shutil.rmtree(wipe_out, ignore_errors=True)
 
         return None
