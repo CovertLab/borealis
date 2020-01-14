@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """A Fireworks worker on Google Compute Engine to "rapidfire" launch rockets."""
 
-# TODO(jerry): Investigate Live Migration, Maintenance events, preemptible
-# instances, availability policies, restart behavior,
+# TODO(jerry): Investigate GCE Live Migration, Maintenance events, preemptible
+# instances, availability policies, and restart behavior.
 
 from __future__ import absolute_import, division, print_function
 
@@ -29,10 +29,7 @@ LAUNCHPAD_FILE = 'my_launchpad.yaml'
 DEFAULT_LOGDIR = os.path.join(os.environ.get('HOME', os.getcwd()), 'logs', 'worker')
 
 
-# TODO(jerry): a Firetask that pulls inputs from & pushes outputs to GCS, runs
-# the target in a Docker container, and uses StackDriver logging. Do StackDriver
-# here, too?
-
+# TODO(jerry): Use StackDriver logging. Redirect FireWorks logging?
 
 class Fireworker(object):
 
@@ -48,7 +45,6 @@ class Fireworker(object):
 
         self.launchpad = LaunchPad(**lpad_config)
 
-        # TODO(jerry): Adopt StackDriver logging here? Redirect FireWorks logging?
         self.logger = fw_utilities.get_fw_logger(
             'fireworker',
             l_dir=self.launchpad.get_logdir(),

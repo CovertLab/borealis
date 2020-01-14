@@ -13,7 +13,7 @@ TIMEOUT = 60  # seconds
 def makedirs(path, *paths):
     # type: (str, *str) -> str
     """Join one or more path components, make that directory path (using the
-    default mode 0o0777), and return the full path.
+    default mode 0o0777), and return the joined path.
 
     Raise OSError if it can't achieve the result (e.g. the containing directory
     is readonly or the path contains a file); not if the directory already
@@ -22,7 +22,8 @@ def makedirs(path, *paths):
     full_path = os.path.join(path, *paths)
 
     try:
-        os.makedirs(full_path)
+        if full_path:
+            os.makedirs(full_path)
     except OSError as e:
         if e.errno != errno.EEXIST or not os.path.isdir(full_path):
             raise

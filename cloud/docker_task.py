@@ -18,6 +18,7 @@ from docker.types import Mount
 from docker.utils import parse_repository_tag
 from fireworks import explicit_serialize, FiretaskBase, FWAction
 
+from cloud.storage import CloudStorage, names_a_directory
 import util.filepath as fp
 
 
@@ -35,15 +36,7 @@ def captures(path):
     """
     return ('>>' if path.startswith('>>')
             else '>' if path.startswith('>')
-    else None)
-
-
-def names_a_directory(path):
-    # type: (str) -> bool
-    """Return True if the given path names a directory vs. a file (even on GCS,
-    existing or yet to be created) by checking if the path ends with a '/'.
-    """
-    return path.endswith(os.sep)
+            else None)
 
 
 @explicit_serialize
@@ -69,19 +62,22 @@ class DockerTask(FiretaskBase):
     #   `internal_prefix` to `storage_prefix`, and the corresponding local paths
     #   outside the container by rebasing each path to `local_prefix`.
     #
-    #   Each path in `inputs` and `outputs` indicates a directory tree of files
-    #   if it ends with '/', otherwise a file.
+    #   NOTE: Each path in `inputs` and `outputs` names a directory tree of
+    #   files if it ends with '/', otherwise a file. This is needed because the
+    #   GCS is a flat object store without directories and DockerTask needs to
+    #   know whether to create files or directories.
     #
     #   If the task completes normally, DockerTask will all its outputs to GCS.
     #   Otherwise, it only writes '>>' log files.
     #
-    #   An output path that starts with '>' captures stdout + stderr. The rest
-    #   of that pathname provides a pathname as if internal to the container,
-    #   which gets rebased to compute its local and storage pathnames.
-    #
     #   An output path that starts with '>>' will capture a log of stdout +
     #   stderr + other log messages like elapsed time and task exit code.
-    #   DockerTask will write it even if the task failed, to aid debugging.
+    #   DockerTask will write it even if the task fails (to aid debugging),
+    #   unlike all the other outputs.
+    #
+    #   An output path that starts with '>' captures stdout + stderr. The rest
+    #   of the path is as if internal to the container, and will get rebased to
+    #   to compute its storage path.
     #
     # timeout: in seconds, indicates how long to let the task run.
     required_params = [
@@ -110,8 +106,8 @@ class DockerTask(FiretaskBase):
         """
         core_path = internal_path.lstrip('>')
         internal_prefix = self['internal_prefix']
-        relpath = os.path.relpath(core_path, internal_prefix)
-        new_path = os.path.join(new_prefix, relpath)
+        rel_path = os.path.relpath(core_path, internal_prefix)
+        new_path = os.path.join(new_prefix, rel_path)
 
         # os.path.relpath() removes a trailing slash. Restore it.
         if core_path.endswith(os.sep):
@@ -125,20 +121,19 @@ class DockerTask(FiretaskBase):
 
     def setup_mount(self, internal_path, local_prefix):
         # type: (str, str) -> PathMapping
-        """Set up the Docker Mount between a path internal to the Docker
-        container and one in the local file system, and create the local file or
-        directory so Docker can detect whether to mount a file or directory.
+        """Create a path mapping between a path internal to the Docker container
+        and one in the local file system, make the Docker Mount, and create the
+        local file or directory so Docker can detect whether to mount a file or
+        directory.
         """
         local_path = self.rebase(internal_path, local_prefix)
-        storage_path = self.rebase(internal_path, self['storage_prefix'])
+        storage_path = self.rebase(internal_path, '')  # CloudStorage handles the storage_prefix
 
-        if names_a_directory(local_path):
-            fp.makedirs(local_path)
-        else:
-            fp.makedirs(os.path.dirname(local_path))
+        fp.makedirs(os.path.dirname(local_path))
+        if not names_a_directory(local_path):
             open(local_path, 'a').close()
 
-        # Create the Docker Mount unless this mapping will capture stdout, etc.
+        # Create the Docker Mount unless this mapping will capture stdout.
         mount = (None if captures(internal_path)
                  else Mount(target=internal_path, source=local_path, type='bind'))
 
@@ -150,13 +145,13 @@ class DockerTask(FiretaskBase):
         return [self.setup_mount(path, os.path.join(self.LOCAL_BASEDIR, group))
                 for path in self.get(group, [])]
 
-    def _outputs_to_save(self, lines, success, outs):
+    def _outputs_to_push(self, lines, success, outs):
         # type: (List[str], bool, List[PathMapping]) -> List[PathMapping]
         """Write requested stdout+stderr and log output files, then return a
-        list of all output PathMappings to save to GCS: everything if the Task
-        succeeded; just the '>>' logs if it failed.
+        list of all output PathMappings to push to GCS. That's all of them if
+        the Task succeeded, or just the '>>' logs if it failed.
         """
-        to_save = []
+        to_push = []
 
         for out in outs:
             cap = captures(out.internal)
@@ -169,36 +164,33 @@ class DockerTask(FiretaskBase):
                     print('Error writing to {}: {}'.format(out.internal, e))
 
             if success or cap == '>>':
-                to_save.append(out)
+                to_push.append(out)
 
-        return to_save
+        return to_push
 
-    def push_to_gcs(self, to_save):
-        # type: (List[PathMapping]) -> None
-        """Push outputs to GCS."""
-        # TODO: Call the API instead of gsutil? That'll let us create the psuedo
-        #  directory placeholders needed for fast gcsfuse, but we won't get
-        #  parallel operations and retry handling for free. If we stick with
-        #  gsutil, make this more careful about which paths to upload and deal
-        #  with gsutil exit status.
-        if len(to_save) < 1:
-            return
+    def push_to_gcs(self, to_push):
+        # type: (List[PathMapping]) -> bool
+        """Push outputs to GCS. Return True if successful."""
+        # TODO(jerry): Parallelize.
+        ok = True
+        gcs = CloudStorage(self['storage_prefix'])
 
-        if len(to_save) == 1:  # e.g. just a >>log file, not all of base/outputs/
-            mapping = to_save[0]
-            fp.run_cmd(['gsutil', '-m', 'cp', '-r', mapping.local, 'gs://' + mapping.storage])
-            return
+        for mapping in to_push:
+           ok = gcs.upload_tree(mapping.local, mapping.storage) and ok
 
-        local_root = os.path.join(self.LOCAL_BASEDIR, 'outputs', '*')
-        storage_prefix = self['storage_prefix']
-        fp.run_cmd(['gsutil', '-m', 'cp', '-r', local_root, 'gs://' + storage_prefix])
+        return ok
 
-    def pull_from_gcs(self, ins):
-        # type: (List[PathMapping]) -> None
-        """Pull inputs from GCS."""
-        # TODO(jerry): Handle errors, further parallelize, and maybe do retries.
-        for mapping in ins:
-            fp.run_cmd(['gsutil', '-m', 'cp', '-r', 'gs://' + mapping.storage, mapping.local])
+    def pull_from_gcs(self, to_pull):
+        # type: (List[PathMapping]) -> bool
+        """Pull inputs from GCS. Return True if successful."""
+        # TODO(jerry): Parallelize.
+        ok = True
+        gcs = CloudStorage(self['storage_prefix'])
+
+        for mapping in to_pull:
+            ok = gcs.download_tree(mapping.storage, mapping.local) and ok
+
+        return ok
 
 
     # ODDITIES ABOUT THE PYTHON DOCKER PACKAGE
@@ -232,25 +224,31 @@ class DockerTask(FiretaskBase):
 
     def run_task(self, fw_spec):
         """Run a task as a shell command in a Docker container."""
-        # TODO(jerry): Detect failures, pull/push to GCS, StackDriver, timeout.
         # TODO(jerry): Push the log file to GCS even if there's a Docker error.
+        # TODO(jerry): StackDriver logging.
+        # TODO(jerry): Implement timeouts.
+        # TODO(jerry): Parallelize Docker pull with pulling inputs.
+        errors = []
+        def check(success, or_error):
+            if not success:
+                errors.append(or_error)
+
         print('Starting task "{}"'.format(self['name']))
 
-        client = docker.from_env()
+        docker_client = docker.from_env()
         ins = self.setup_mounts('inputs')
         outs = self.setup_mounts('outputs')
 
         repository, tag = parse_repository_tag(self['image'])
         if not tag:
             tag = 'latest'  # 'latest' is the default tag; it doesn't mean squat
-        image = client.images.pull(repository, tag)
+        image = docker_client.images.pull(repository, tag)
         lines = []  # type: List[str]
-        exit_code = -1
 
         try:
-            self.pull_from_gcs(ins)
+            check(self.pull_from_gcs(ins), 'Failed to pull inputs')
 
-            container = client.containers.run(
+            container = docker_client.containers.run(
                 image,
                 command=self['command'],
                 user=uid_gid(),
@@ -266,6 +264,7 @@ class DockerTask(FiretaskBase):
                     print(line.rstrip())
 
                 exit_code = container.wait()['StatusCode']
+                check(exit_code == 0, 'Exit code {}'.format(exit_code))
                 print('Exit code: {}'.format(exit_code))  # TODO(jerry): Log more info
             finally:
                 try:
@@ -273,16 +272,21 @@ class DockerTask(FiretaskBase):
                 except docker_errors.APIError as e:
                     print('Docker error removing a container: {}'.format(e))
 
-            to_save = self._outputs_to_save(lines, exit_code == 0, outs)
-            self.push_to_gcs(to_save)
+            to_push = self._outputs_to_push(lines, not errors, outs)
+            # NOTE: The log file was already written and might fail to push, so
+            # it won't report on push failures.
+            check(self.push_to_gcs(to_push), 'Failed to push outputs')
 
-            if exit_code != 0:
-                # The task failed so skip downstream Firetasks and FireWorks.
-                return FWAction(exit=True, defuse_children=True)
+            if errors:
+                return FWAction(
+                    exit=True,  # skip remaining Firetasks in this Firework
+                    defuse_children=True,  # skip downstream FireWorks
+                    stored_data={'errors': errors})  # final report
 
         finally:
             wipe_out = self.LOCAL_BASEDIR
-            # wipe_out = os.path.join(self.LOCAL_BASEDIR, 'inputs')
+            # [Could wipe just os.path.join(self.LOCAL_BASEDIR, 'inputs') to
+            # keep the outputs for local scrutiny.]
             shutil.rmtree(wipe_out, ignore_errors=True)
 
         return None
