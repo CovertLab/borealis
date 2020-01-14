@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 from collections import namedtuple
 import os
+from pprint import pprint
 import shutil
 from typing import List, Optional
 
@@ -145,11 +146,11 @@ class DockerTask(FiretaskBase):
         return [self.setup_mount(path, os.path.join(self.LOCAL_BASEDIR, group))
                 for path in self.get(group, [])]
 
-    def _outputs_to_push(self, lines, success, outs):
-        # type: (List[str], bool, List[PathMapping]) -> List[PathMapping]
+    def _outputs_to_push(self, lines, success, outs, epilogue):
+        # type: (List[str], bool, List[PathMapping], str) -> List[PathMapping]
         """Write requested stdout+stderr and log output files, then return a
         list of all output PathMappings to push to GCS. That's all of them if
-        the Task succeeded, or just the '>>' logs if it failed.
+        the Task succeeded; only the '>>' logs if it failed.
         """
         to_push = []
 
@@ -158,8 +159,16 @@ class DockerTask(FiretaskBase):
             if cap:
                 try:
                     with open(out.local, 'w') as f:
-                        # TODO(jerry): If cap = '>>', include prologue and epilogue.
+                        hr = ''
+                        if cap == '>>':
+                            hr = '-' * 80
+                            pprint(self.to_dict(), f)  # prologue
+                            f.write('\n{}\n'.format(hr))
+
                         f.writelines(lines)
+
+                        if hr:
+                            f.write('{}\n\n{}\n'.format(hr, epilogue))
                 except IOError as e:
                     print('Error writing to {}: {}'.format(out.internal, e))
 
@@ -228,24 +237,29 @@ class DockerTask(FiretaskBase):
         # TODO(jerry): StackDriver logging.
         # TODO(jerry): Implement timeouts.
         # TODO(jerry): Parallelize Docker pull with pulling inputs.
+        name = self['name']
         errors = []
         def check(success, or_error):
             if not success:
                 errors.append(or_error)
+        def epilog():
+            # TODO(jerry): Include the elapsed time and the timeout parameter.
+            return '{} task: {} {}'.format(
+                'Failed' if errors else 'Successful', name, errors if errors else '')
 
-        print('Starting task "{}"'.format(self['name']))
+        print('Starting task: {}'.format(name))
 
         docker_client = docker.from_env()
         ins = self.setup_mounts('inputs')
         outs = self.setup_mounts('outputs')
-
-        repository, tag = parse_repository_tag(self['image'])
-        if not tag:
-            tag = 'latest'  # 'latest' is the default tag; it doesn't mean squat
-        image = docker_client.images.pull(repository, tag)
         lines = []  # type: List[str]
 
         try:
+            repository, tag = parse_repository_tag(self['image'])
+            if not tag:
+                tag = 'latest'  # 'latest' is the default tag; it doesn't mean squat
+            image = docker_client.images.pull(repository, tag)
+
             check(self.pull_from_gcs(ins), 'Failed to pull inputs')
 
             container = docker_client.containers.run(
@@ -264,29 +278,39 @@ class DockerTask(FiretaskBase):
                     print(line.rstrip())
 
                 exit_code = container.wait()['StatusCode']
-                check(exit_code == 0, 'Exit code {}'.format(exit_code))
-                print('Exit code: {}'.format(exit_code))  # TODO(jerry): Log more info
+                check(exit_code == 0, 'Exit code {}{}'.format(
+                    exit_code, ' (SIGKILL)' if exit_code == 137 else ''))
+                state = container.attrs.get('State')
+                if isinstance(state, dict):
+                    check(not state.get('OOMKilled'), 'OOM-Killed')
             finally:
                 try:
                     container.remove(force=True)
                 except docker_errors.APIError as e:
                     print('Docker error removing a container: {}'.format(e))
 
-            to_push = self._outputs_to_push(lines, not errors, outs)
-            # NOTE: The log file was already written and might fail to push, so
-            # it won't report on push failures.
+            to_push = self._outputs_to_push(lines, not errors, outs, epilog())
+
+            # NOTE: The >>task.log file won't report on push failures since it's
+            # written before pushing and might itself fail to push. But the
+            # StackDriver log and Fireworks stored_data get that info.
             check(self.push_to_gcs(to_push), 'Failed to push outputs')
+
+        except (Exception, KeyboardInterrupt) as e:  # TODO(jerry): Overly broad with finally-return?
+            check(False, repr(e))
+            raise e
+        finally:
+            print(epilog())
+
+            # [Could wipe just os.path.join(self.LOCAL_BASEDIR, 'inputs') to
+            # keep the outputs for local scrutiny.]
+            wipe_out = self.LOCAL_BASEDIR
+            shutil.rmtree(wipe_out, ignore_errors=True)
 
             if errors:
                 return FWAction(
                     exit=True,  # skip remaining Firetasks in this Firework
                     defuse_children=True,  # skip downstream FireWorks
                     stored_data={'errors': errors})  # final report
-
-        finally:
-            wipe_out = self.LOCAL_BASEDIR
-            # [Could wipe just os.path.join(self.LOCAL_BASEDIR, 'inputs') to
-            # keep the outputs for local scrutiny.]
-            shutil.rmtree(wipe_out, ignore_errors=True)
 
         return None
