@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 import errno
 import os
 import subprocess
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple
 
 
 TIMEOUT = 60  # seconds
@@ -31,28 +31,42 @@ def makedirs(path, *paths):
     return full_path
 
 
-def run_cmd(tokens, trim=True, timeout=TIMEOUT):
-    # type: (Sequence[str], bool, Optional[int]) -> str
-    """Run a shell command-line (in token list form) and return its output.
+def run_cmd2(tokens, trim=True, timeout=TIMEOUT):
+    # type: (Sequence[str], bool, Optional[int]) -> Tuple[str, str]
+    """Run a shell command-line (in token list form) and return a tuple
+    containing its (stdout, stderr).
     This does not expand filename patterns or environment variables or do other
     shell processing steps.
 
     Args:
         tokens: The command line as a list of string tokens.
         trim: Whether to trim off trailing whitespace. This is useful
-            because the subprocess output usually ends with a newline.
+            because the outputs usually end with a newline.
         timeout: timeout in seconds; None for no timeout.
     Returns:
-        The command's output string.
+        The command's stdout and stderr strings.
     Raises:
-        OSError, subprocess.SubprocessError (TimeoutExpired or CalledProcessError)
+        OSError (e.g. FileNotFoundError or PermissionError),
+          subprocess.SubprocessError (TimeoutExpired or CalledProcessError)
     """
     out = subprocess.run(
-        tokens, stdout=subprocess.PIPE, check=True, universal_newlines=True,
-        timeout=timeout).stdout
+        tokens,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+        universal_newlines=True,
+        timeout=timeout)
     if trim:
-        out = out.rstrip()
-    return out
+        return out.stdout.rstrip(), out.stderr.rstrip()
+    return out.stdout, out.stderr
+
+
+def run_cmd(tokens, trim=True, timeout=TIMEOUT):
+    # type: (Sequence[str], bool, Optional[int]) -> str
+    """Run a shell command-line (in token list form) and return its stdout.
+    See run_cmd2().
+    """
+    return run_cmd2(tokens, trim=trim, timeout=timeout)[0]
 
 
 def run_cmdline(line, trim=True, timeout=TIMEOUT):
