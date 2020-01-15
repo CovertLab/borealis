@@ -30,13 +30,12 @@ def gcloud_get_config(section_property):
         if e.stderr:  # e.g. 'ERROR: (gcloud.config.get-value) Section [compute] has no property [zonE].\n'
             raise OSError(errno.EINVAL, e.stderr.rstrip())
         raise
-    except FileNotFoundError as e:
-        raise FileNotFoundError(
+    except OSError as e:
+        raise OSError(
             e.errno,
             '{}: "{}" -- You might need to install the Google Cloud SDK and put its'
             ' `gcloud` command line program on your shell path. See {}'.format(
                 e.strerror, e.filename, 'https://cloud.google.com/sdk/install'))
-    # or another OSError
 
 
 def project():
