@@ -91,8 +91,8 @@ def gce_instance_name(complain_off_gcp=True):
     return instance_metadata('name', complain_off_gcp=complain_off_gcp)
 
 
-def delete_this_vm():
-    # type: () -> None
+def delete_this_vm(exit_code=0):
+    # type: (int) -> None
     """Ask gcloud to delete this GCE VM instance if running on GCE. In any case
     exit Python if not already shut down, and Python cleanup actions might run.
     """
@@ -106,4 +106,4 @@ def delete_this_vm():
     else:
         print('Exiting (not running on GCE).')
 
-    sys.exit()
+    sys.exit(exit_code)

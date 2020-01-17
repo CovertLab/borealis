@@ -18,9 +18,9 @@ def bucket_path(pathname):
     """Split a GCS pathname like `my_bucket/stuff/file.txt` into bucket and path
     parts `['my_bucket', 'stuff/file.txt']`.
     """
-    if pathname.startswith('/'):
+    if pathname.startswith(os.sep):
         pathname = pathname[1:]
-    parts = pathname.split('/', 1)
+    parts = pathname.split(os.sep, 1)
     if len(parts) < 2:
         parts.append('')
     return parts
@@ -35,7 +35,12 @@ def names_a_directory(path):
 
 
 class CloudStorage(object):
-    """A higher level interface to a GCS bucket."""
+    """A higher level interface to a GCS bucket.
+
+    See https://cloud.google.com/storage/docs/naming about legal bucket and
+    blob (aka object) names, and note that bucket names are public and must be
+    globally unique.
+    """
 
     #: For efficiency, retrieve just these Blob metadata fields.
     FIELDS = 'items(id,name,generation,size),nextPageToken'
@@ -47,15 +52,19 @@ class CloudStorage(object):
         'curie-workflows/sim/2020-02-02/'. (It should end with a '/' but will
         work if it doesn't.) All operations are relative to this prefix.
 
+        Raise google.api_core.exceptions.NotFound if the bucket doesn't exist.
+
         File uploads to GCS will automatically create directory placeholder
         entries, which are empty objects with names ending in '/'. GCS doesn't
         require them but they make gcsfuse-mounted volumes 10x faster (gcsfuse
         without the `--implicit-dirs` option).
-
-        Raise google.api_core.exceptions.NotFound if the bucket doesn't exist.
         """
         self.bucket_name, self.path_prefix = bucket_path(storage_prefix)
         self.path_prefix = os.path.join(self.path_prefix, '')
+        if len(self.bucket_name) < 3:
+            # get_bucket() checks that the bucket name is legal and the bucket
+            # exists, but it trips over an empty name.
+            raise ValueError("Invalid bucket name: '{}'".format(self.bucket_name))
 
         # TODO(jerry): Use a service account even when running outside GCE to
         #  avoid that warning? Suppress the warning?
@@ -86,7 +95,7 @@ class CloudStorage(object):
         'sim/2020/logs/sim.log', make 'sim/', 'sim/2020/', and 'sim/2020/logs/'.
         See clear_directory_cache().
         """
-        parts = os.path.join(self.path_prefix, sub_path).split('/')[:-1]
+        parts = os.path.join(self.path_prefix, sub_path).split(os.sep)[:-1]
 
         for prefix in itertools.accumulate(parts, os.path.join):
             dir_name = os.path.join(prefix, '')
@@ -101,7 +110,6 @@ class CloudStorage(object):
                 # https://github.com/googleapis/google-cloud-python/issues/10105
                 try:
                     if not blob.exists():
-                        print('Creating GCS dir "{}"'.format(dir_name))  # *** DEBUG ***
                         blob.upload_from_string(b'', content_type=OCTET_STREAM)
                 except GoogleCloudError as e:
                     # Failing to create a dir placeholder will affect gcsfuse

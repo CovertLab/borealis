@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 import argparse
 import os
 import socket
+import sys
 import time
 import traceback
 
@@ -138,36 +139,48 @@ def main(development=False):
     You can set a custom metadata field to make this worker stop idling:
         gcloud compute instances add-metadata INSTANCE-NAME --metadata quit=when-idle
     """
-    with open(LAUNCHPAD_FILE) as f:
-        lpad_config = yaml.safe_load(f)  # type: dict
-
-    instance_name = gcp.gce_instance_name() or socket.gethostname()
-    db_name = (gcp.instance_metadata('attributes/db')
-               or lpad_config.get('name', 'default_fireworks_database'))
-    lpad_config['name'] = db_name
-
-    username = (gcp.instance_metadata('attributes/username')
-                or lpad_config.get('username'))
-    password = (gcp.instance_metadata('attributes/password')
-                or lpad_config.get('password'))
-    lpad_config['username'] = username
-    lpad_config['password'] = password
-
-    logdir = lpad_config.setdefault('logdir', DEFAULT_LOGDIR)
-    if logdir:
-        fp.makedirs(logdir)
-
-    print('\nStarting fireworker on {} with LaunchPad config: {}\n'.format(
-        instance_name, lpad_config))
+    exit_code = 0
 
     try:
+        with open(LAUNCHPAD_FILE) as f:
+            lpad_config = yaml.safe_load(f)  # type: dict
+
+        instance_name = gcp.gce_instance_name() or socket.gethostname()
+        db_name = (gcp.instance_metadata('attributes/db')
+                   or lpad_config.get('name', 'default_fireworks_database'))
+        lpad_config['name'] = db_name
+
+        username = (gcp.instance_metadata('attributes/username')
+                    or lpad_config.get('username'))
+        password = (gcp.instance_metadata('attributes/password')
+                    or lpad_config.get('password'))
+        lpad_config['username'] = username
+        lpad_config['password'] = password
+
+        logdir = lpad_config.setdefault('logdir', DEFAULT_LOGDIR)
+        if logdir:
+            fp.makedirs(logdir)
+
+        print('\nStarting fireworker on {} with LaunchPad config: {}\n'.format(
+            instance_name, lpad_config))
+
         fireworker = Fireworker(lpad_config, instance_name)
         fireworker.launch_rockets()
     except Exception:
+        exit_code = 1
         print('\nfireworker error: {}'.format(traceback.format_exc()))
 
-    if not development:
-        gcp.delete_this_vm()
+
+    if development:
+        sys.exit(exit_code)
+    else:
+        if exit_code:  # an unexpected failure, e.g. missing a needed pip
+            print('Delaying before deleting this GCE VM to allow some time to'
+                  ' connect to it, stop this service, fix the problem, and save'
+                  ' a fixed Disk Image.')
+            time.sleep(15 * 60)
+            print("Time's up.")
+        gcp.delete_this_vm(exit_code)
 
 
 def cli():

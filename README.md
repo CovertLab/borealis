@@ -12,15 +12,53 @@ See the repo [Borealis](https://github.com/CovertLab/borealis).
 
 ## Background
 
-Instead of a FireWorks worker queue, Borealis launches as many worker nodes as you want
-as Google Compute Engine (GCE) VM instances. Metadata parameters and a
-`my_launchpad.yaml` file tell the workers what FireWorks LaunchPad to connect
-to -- mainly a MongoDB host, port, and DB name. The workers pull and run Fireworks in
-"rapidfire" mode and eventually time out and shut themselves down.
+You can launch as many FWorker nodes as you want as Google Compute Engine (GCE) VM
+instances, and/or run local workers, as long as they can all connect to the LaunchPad
+server running MongoDB. Metadata parameters and the worker's `my_launchpad.yaml` file
+supply the MongoDB host, port, and DB name. Users can share a MongoDB server, and each
+user can have multiple DB names -- each an independent space for workflows and worker
+nodes.
 
-Workers should also be able to fetch task input files from Google Cloud Storage (GCS)
-and store task output files back to GCS. This avoids needing a shared NFS file service,
-which costs 10x as much as GCS storage.
+Workers get Fireworks from the LaunchPad, run them in "rapidfire" mode, and eventually
+time out and shut themselves down.
 
-Workers should be able to run their payload tasks in Docker containers to isolate the
-worker from the tasks' runtime environments and code.
+Workers can run any Firetasks that are loaded on their disk images, but the best fit
+is to run the DockerTask Firetask. DockerTask pulls task input files from
+Google Cloud Storage (GCS), runs a payload task as a shell command within a Docker
+container, and pushes task output files to GCS.
+
+DockerTask parameters include the Docker image to pull, the command shell tokens to
+run in the Docker container, and its input and output files and directories.
+
+DockerTask pulls the inputs from and pushes the outputs to Google Cloud Storage (GCS).
+This avoids needing a shared NFS file service which costs 10x as much as GCS storage
+and doesn't scale as well.
+
+Using a Docker image lets you bundle up the payload task with its entire runtime,
+e.g. Python version, pips, Linux apts, and config files. Your workflow can use one or
+more Docker images, and they're isolated from the FWorker.
+
+
+## Team Setup
+
+TODO:
+Install & configure dev tools,
+create a GCP project,
+auth stuff,
+install MongoDB on a GCE VM or set up Google-managed MongoDB,
+create a Fireworker disk image & image family,
+...
+
+
+## Individual Developer Setup
+
+TODO:
+Install & configure dev tools,
+make a storage bucket with a globally-unique name,
+build a Docker image to run,
+...
+
+
+## Run
+
+TODO

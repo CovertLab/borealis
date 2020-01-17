@@ -18,6 +18,7 @@ from docker import errors as docker_errors
 from docker.types import Mount
 from docker.utils import parse_repository_tag
 from fireworks import explicit_serialize, FiretaskBase, FWAction
+from google.api_core.exceptions import GoogleAPIError
 
 from cloud.storage import CloudStorage, names_a_directory
 import util.filepath as fp
@@ -244,7 +245,7 @@ class DockerTask(FiretaskBase):
                 errors.append(or_error)
         def epilog():
             # TODO(jerry): Include the elapsed time and the timeout parameter.
-            return '{} task: {} {}'.format(
+            return '{} task {}: {}'.format(
                 'Failed' if errors else 'Successful', name, errors if errors else '')
 
         print('Starting task: {}'.format(name))
@@ -268,7 +269,6 @@ class DockerTask(FiretaskBase):
                 user=uid_gid(),
                 mounts=[mapping.mount for mapping in ins + outs if mapping.mount],
                 detach=True)
-            # TODO: Catch docker_errors.ImageNotFound, docker_errors.APIError.
 
             try:
                 for line in container.logs(stream=True):  # TODO: Set follow=True?
@@ -286,19 +286,24 @@ class DockerTask(FiretaskBase):
             finally:
                 try:
                     container.remove(force=True)
-                except docker_errors.APIError as e:
+                except docker_errors.APIError as e:  # troubling but not a task error
                     print('Docker error removing a container: {}'.format(e))
 
             to_push = self._outputs_to_push(lines, not errors, outs, epilog())
 
             # NOTE: The >>task.log file won't report on push failures since it's
             # written before pushing and might itself fail to push. But the
-            # StackDriver log and Fireworks stored_data get that info.
+            # StackDriver log will get it, and the Fireworks stored_data will
+            # get it if we return FWAction rather than re-raise the exception.
             check(self.push_to_gcs(to_push), 'Failed to push outputs')
 
-        except (Exception, KeyboardInterrupt) as e:  # TODO(jerry): Overly broad with finally-return?
+        except (docker_errors.DockerException, GoogleAPIError, ValueError,
+                OSError) as e:
             check(False, repr(e))
-            raise e
+        except (Exception, KeyboardInterrupt) as e:
+            # Broad case: Log it, clean up, and re-raise it.
+            check(False, repr(e))
+            raise
         finally:
             print(epilog())
 
@@ -307,10 +312,9 @@ class DockerTask(FiretaskBase):
             wipe_out = self.LOCAL_BASEDIR
             shutil.rmtree(wipe_out, ignore_errors=True)
 
-            if errors:
-                return FWAction(
-                    exit=True,  # skip remaining Firetasks in this Firework
-                    defuse_children=True,  # skip downstream FireWorks
-                    stored_data={'errors': errors})  # final report
-
+        if errors:
+            return FWAction(
+                exit=True,  # skip remaining Firetasks in this Firework
+                defuse_children=True,  # skip downstream FireWorks
+                stored_data={'errors': errors})  # final report
         return None
