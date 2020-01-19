@@ -11,25 +11,28 @@ from collections import namedtuple
 import os
 from pprint import pprint
 import shutil
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import docker
 from docker import errors as docker_errors
 from docker.types import Mount
 from docker.utils import parse_repository_tag
-from fireworks import explicit_serialize, FiretaskBase, FWAction
-from google.api_core.exceptions import GoogleAPIError
+from fireworks import explicit_serialize, FiretaskBase
 
 from cloud.storage import CloudStorage, names_a_directory
 import util.filepath as fp
 
 
-def uid_gid():
-    """Return the Unix uid:gid (user ID, group ID) pair."""
-    return '{}:{}'.format(fp.run_cmdline('id -u'), fp.run_cmdline('id -g'))
+class DockerTaskError(Exception):
+    pass
+
 
 PathMapping = namedtuple('PathMapping', 'internal local storage mount')
 
+
+def uid_gid():
+    """Return the Unix uid:gid (user ID, group ID) pair."""
+    return '{}:{}'.format(fp.run_cmdline('id -u'), fp.run_cmdline('id -g'))
 
 def captures(path):
     # type: (str) -> Optional[str]
@@ -94,6 +97,17 @@ class DockerTask(FiretaskBase):
         'timeout']
 
     LOCAL_BASEDIR = os.path.join(os.sep, 'tmp', 'fireworker')
+
+    def pull_docker_image(self, docker_client):
+        # type: (docker.DockerClient) -> Any  # a Docker Image
+        """Pull the requested Docker Image. Ensure there's a tag so pull() will
+        get one Image rather than all tags in a repository.
+        """
+        repository, tag = parse_repository_tag(self['image'])
+        if not tag:
+            tag = 'latest'  # 'latest' is the default tag; it doesn't mean squat
+        print('Pulling Docker image {}:{}'.format(repository, tag))
+        return docker_client.images.pull(repository, tag)
 
     def rebase(self, internal_path, new_prefix):
         # type: (str, str) -> str
@@ -183,6 +197,7 @@ class DockerTask(FiretaskBase):
         """Push outputs to GCS. Return True if successful."""
         # TODO(jerry): Parallelize.
         ok = True
+        print('Pushing {} outputs to GCS'.format(len(to_push)))
         gcs = CloudStorage(self['storage_prefix'])
 
         for mapping in to_push:
@@ -195,6 +210,7 @@ class DockerTask(FiretaskBase):
         """Pull inputs from GCS. Return True if successful."""
         # TODO(jerry): Parallelize.
         ok = True
+        print('Pulling {} inputs from GCS'.format(len(to_pull)))
         gcs = CloudStorage(self['storage_prefix'])
 
         for mapping in to_pull:
@@ -256,13 +272,11 @@ class DockerTask(FiretaskBase):
         lines = []  # type: List[str]
 
         try:
-            repository, tag = parse_repository_tag(self['image'])
-            if not tag:
-                tag = 'latest'  # 'latest' is the default tag; it doesn't mean squat
-            image = docker_client.images.pull(repository, tag)
+            image = self.pull_docker_image(docker_client)
 
             check(self.pull_from_gcs(ins), 'Failed to pull inputs')
 
+            print('Running: {}'.format(self['command']))
             container = docker_client.containers.run(
                 image,
                 command=self['command'],
@@ -291,17 +305,14 @@ class DockerTask(FiretaskBase):
 
             to_push = self._outputs_to_push(lines, not errors, outs, epilog())
 
-            # NOTE: The >>task.log file won't report on push failures since it's
+            # NOTE: The >>task.log file won't report push failures since it's
             # written before pushing and might itself fail to push. But the
             # StackDriver log will get it, and the Fireworks stored_data will
-            # get it if we return FWAction rather than re-raise the exception.
+            # get it if this returns FWAction rather than raise an exception.
             check(self.push_to_gcs(to_push), 'Failed to push outputs')
 
-        except (docker_errors.DockerException, GoogleAPIError, ValueError,
-                OSError) as e:
-            check(False, repr(e))
         except (Exception, KeyboardInterrupt) as e:
-            # Broad case: Log it, clean up, and re-raise it.
+            # Log it, clean up, and re-raise it. That'll FIZZLE the Firework.
             check(False, repr(e))
             raise
         finally:
@@ -313,8 +324,6 @@ class DockerTask(FiretaskBase):
             shutil.rmtree(wipe_out, ignore_errors=True)
 
         if errors:
-            return FWAction(
-                exit=True,  # skip remaining Firetasks in this Firework
-                defuse_children=True,  # skip downstream FireWorks
-                stored_data={'errors': errors})  # final report
+            raise DockerTaskError(repr(errors))  # FIZZLE this Firework
+
         return None

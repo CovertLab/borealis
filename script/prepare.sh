@@ -15,6 +15,11 @@
 
 set -eu
 
+### TODO: Proper installation of gcloud. Start with an image that has it preinstalled? Update it?
+gcloud components install docker-credential-gcr
+# TODO: Put symlinks in /usr/local/bin to google-cloud-sdk/bin/docker-credential-gcr, docker-credential-gcloud
+docker-credential-gcr configure-docker
+
 PROJECT="$(gcloud config get-value core/project)"
 
 sudo apt update
