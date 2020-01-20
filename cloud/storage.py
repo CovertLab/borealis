@@ -142,12 +142,13 @@ class CloudStorage(object):
         try:
             self.make_dirs(sub_path)
 
-            print('Uploading "{}" to GCS "{}"'.format(local_path, full_path))  # *** DEBUG ***
+            # print('Uploading "{}" to GCS "{}"'.format(local_path, full_path))  # *** DEBUG ***
             blob = self.bucket.blob(full_path)
             blob.upload_from_filename(local_path)  # guesses content_type from the path
         except (GoogleCloudError, FileNotFoundError) as e:
             # TODO(jerry): Logging
-            print('Failed to upload "{}" as GCS "{}": {}'.format(local_path, full_path, e))
+            print('Failed to upload "{}" as GCS "{}": {!r}'.format(
+                local_path, full_path, e))
             return False
         return True
 
@@ -192,10 +193,10 @@ class CloudStorage(object):
         fp.makedirs(os.path.dirname(local_path))
 
         try:
-            print('Downloading GCS "{}" to "{}"'.format(blob.name, local_path))  # *** DEBUG ***
+            # print('Downloading GCS "{}" to "{}"'.format(blob.name, local_path))  # *** DEBUG ***
             blob.download_to_filename(local_path)
         except GoogleCloudError as e:
-            print('Failed to download GCS "{}" as "{}": {}'.format(
+            print('Failed to download GCS "{}" as "{}": {!r}'.format(
                 blob.name, local_path, e))
             return False
 

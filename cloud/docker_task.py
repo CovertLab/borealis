@@ -197,7 +197,8 @@ class DockerTask(FiretaskBase):
         """Push outputs to GCS. Return True if successful."""
         # TODO(jerry): Parallelize.
         ok = True
-        print('Pushing {} outputs to GCS'.format(len(to_push)))
+        print('Pushing {} outputs to GCS: {}'.format(
+            len(to_push), [mapping.sub_path for mapping in to_push]))
         gcs = st.CloudStorage(self['storage_prefix'])
 
         for mapping in to_push:
@@ -210,7 +211,8 @@ class DockerTask(FiretaskBase):
         """Pull inputs from GCS. Return True if successful."""
         # TODO(jerry): Parallelize.
         ok = True
-        print('Pulling {} inputs from GCS'.format(len(to_pull)))
+        print('Pulling {} inputs from GCS: {}'.format(
+            len(to_pull), [mapping.sub_path for mapping in to_pull]))
         gcs = st.CloudStorage(self['storage_prefix'])
 
         for mapping in to_pull:
@@ -275,8 +277,6 @@ class DockerTask(FiretaskBase):
 
             ins = self.setup_mounts('inputs')
             outs = self.setup_mounts('outputs')
-            print('ins = {}'.format(ins))  # *** DEBUG
-            print('ous = {}'.format(outs))  # *** DEBUG
 
             check(self.pull_from_gcs(ins), 'Failed to pull inputs')
 

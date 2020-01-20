@@ -63,8 +63,10 @@ class Fireworker(object):
             self._launch_rockets()
         except KeyboardInterrupt as e:
             fw_utilities.log_multi(self.logger, repr(e), 'error')
+            raise
         except Exception:
             fw_utilities.log_exception(self.logger, 'fireworker exception')
+            raise
 
     def _launch_rockets(self):
         # type: () -> None
@@ -139,7 +141,7 @@ def main(development=False):
     You can set a custom metadata field to make this worker stop idling:
         gcloud compute instances add-metadata INSTANCE-NAME --metadata quit=when-idle
     """
-    exit_code = 0
+    exit_code = 1
 
     try:
         with open(LAUNCHPAD_FILE) as f:
@@ -166,11 +168,20 @@ def main(development=False):
 
         fireworker = Fireworker(lpad_config, instance_name)
         fireworker.launch_rockets()
+
+        exit_code = 0
+    except KeyboardInterrupt:
+        print('KeyboardInterrupt -- exiting')
+        sys.exit(2)
     except Exception:
-        exit_code = 1
         print('\nfireworker error: {}'.format(traceback.format_exc()))
 
+    shut_down(development, exit_code)
 
+
+def shut_down(development, exit_code):
+    # type: (bool, int) -> None
+    """Shut down this program or this entire GCE VM (if running on GCE)."""
     if development:
         sys.exit(exit_code)
     else:
@@ -192,7 +203,7 @@ def cli():
     parser.add_argument(
         '--development', action='store_true',
         help="Development mode: When done, just exit Python without deleting"
-             " this GCE VM worker instance (moot when running off GCE).")
+             " this GCE VM worker instance (if running on GCE).")
 
     args = parser.parse_args()
     main(development=args.development)
