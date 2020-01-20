@@ -17,9 +17,9 @@ import docker
 from docker import errors as docker_errors
 from docker.types import Mount
 from docker.utils import parse_repository_tag
-from fireworks import explicit_serialize, FiretaskBase
+from fireworks import explicit_serialize, FiretaskBase, FWAction
 
-from cloud.storage import CloudStorage, names_a_directory
+import cloud.storage as st
 import util.filepath as fp
 
 
@@ -27,12 +27,13 @@ class DockerTaskError(Exception):
     pass
 
 
-PathMapping = namedtuple('PathMapping', 'internal local storage mount')
+PathMapping = namedtuple('PathMapping', 'captures local_prefix local sub_path mount')
 
 
 def uid_gid():
     """Return the Unix uid:gid (user ID, group ID) pair."""
     return '{}:{}'.format(fp.run_cmdline('id -u'), fp.run_cmdline('id -g'))
+
 
 def captures(path):
     # type: (str) -> Optional[str]
@@ -111,23 +112,20 @@ class DockerTask(FiretaskBase):
 
     def rebase(self, internal_path, new_prefix):
         # type: (str, str) -> str
-        """Rebase an internal input or output path from the internal_prefix to
-        new_prefix (without any '>' or '>>' sigil).
+        """Strip off any '>' or '>>' prefix then rebase the internal-to-container
+        path from the internal_prefix to new_prefix.
 
-        A path starting with '>' or '>>' means capture stdout + stderr for
-        writing to the storage path. '>>' creates a log of stdout + stderr +
-        additional information and writes it even if the Docker command fails.
+        '>' or '>>' means capture stdout + stderr rather than fetching a
+        container file; the rest of internal_path is the as-if-internal path.
+        '>>' creates a log of stdout + stderr + additional information and
+        writes it even if the Docker command fails.
 
-        A path ending with '/' identifies a directory.
+        A path ending with '/' indicates a directory.
         """
         core_path = internal_path.lstrip('>')
         internal_prefix = self['internal_prefix']
-        rel_path = os.path.relpath(core_path, internal_prefix)
+        rel_path = st.relpath(core_path, internal_prefix)
         new_path = os.path.join(new_prefix, rel_path)
-
-        # os.path.relpath() removes a trailing slash. Restore it.
-        if core_path.endswith(os.sep):
-            new_path = os.path.join(new_path, '')
 
         if '..' in new_path:
             # This could happen if `internal_path` doesn't start with
@@ -137,23 +135,25 @@ class DockerTask(FiretaskBase):
 
     def setup_mount(self, internal_path, local_prefix):
         # type: (str, str) -> PathMapping
-        """Create a path mapping between a path internal to the Docker container
-        and one in the local file system, make the Docker Mount, and create the
-        local file or directory so Docker can detect whether to mount a file or
-        directory.
+        """Create a PathMapping between a path internal to the Docker container
+        and a sub_path relative the storage_prefix (GCS) and the local_prefix
+        (local file system), make the Docker local:internal Mount object, and
+        create the local file or directory so Docker can detect whether to mount
+        a file or directory.
         """
         local_path = self.rebase(internal_path, local_prefix)
-        storage_path = self.rebase(internal_path, '')  # CloudStorage handles the storage_prefix
+        sub_path = self.rebase(internal_path, '')
 
         fp.makedirs(os.path.dirname(local_path))
-        if not names_a_directory(local_path):
+        if not st.names_a_directory(local_path):
             open(local_path, 'a').close()
 
-        # Create the Docker Mount unless this mapping will capture stdout.
-        mount = (None if captures(internal_path)
+        # Create the Docker Mount unless this mapping will capture stdout & stderr.
+        caps = captures(internal_path)
+        mount = (None if caps
                  else Mount(target=internal_path, source=local_path, type='bind'))
 
-        return PathMapping(internal_path, local_path, storage_path, mount)
+        return PathMapping(caps, local_prefix, local_path, sub_path, mount)
 
     def setup_mounts(self, group):
         # type: (str) -> List[PathMapping]
@@ -170,12 +170,11 @@ class DockerTask(FiretaskBase):
         to_push = []
 
         for out in outs:
-            cap = captures(out.internal)
-            if cap:
+            if out.captures:
                 try:
                     with open(out.local, 'w') as f:
                         hr = ''
-                        if cap == '>>':
+                        if out.captures == '>>':
                             hr = '-' * 80
                             pprint(self.to_dict(), f)  # prologue
                             f.write('\n{}\n'.format(hr))
@@ -185,9 +184,10 @@ class DockerTask(FiretaskBase):
                         if hr:
                             f.write('{}\n\n{}\n'.format(hr, epilogue))
                 except IOError as e:
-                    print('Error writing to {}: {}'.format(out.internal, e))
+                    print('Error capturing to {}: {}'.format(out.local, e))
+                    # TODO(jerry): Count this as a task failure?
 
-            if success or cap == '>>':
+            if success or out.captures == '>>':
                 to_push.append(out)
 
         return to_push
@@ -198,10 +198,10 @@ class DockerTask(FiretaskBase):
         # TODO(jerry): Parallelize.
         ok = True
         print('Pushing {} outputs to GCS'.format(len(to_push)))
-        gcs = CloudStorage(self['storage_prefix'])
+        gcs = st.CloudStorage(self['storage_prefix'])
 
         for mapping in to_push:
-           ok = gcs.upload_tree(mapping.local, mapping.storage) and ok
+           ok = gcs.upload_tree(mapping.local, mapping.sub_path) and ok
 
         return ok
 
@@ -211,10 +211,10 @@ class DockerTask(FiretaskBase):
         # TODO(jerry): Parallelize.
         ok = True
         print('Pulling {} inputs from GCS'.format(len(to_pull)))
-        gcs = CloudStorage(self['storage_prefix'])
+        gcs = st.CloudStorage(self['storage_prefix'])
 
         for mapping in to_pull:
-            ok = gcs.download_tree(mapping.storage, mapping.local) and ok
+            ok = gcs.download_tree(mapping.sub_path, mapping.local_prefix) and ok
 
         return ok
 
@@ -249,30 +249,34 @@ class DockerTask(FiretaskBase):
     #   {'Error': None, 'StatusCode': 1}
 
     def run_task(self, fw_spec):
+        # type: (dict) -> Optional[FWAction]
         """Run a task as a shell command in a Docker container."""
-        # TODO(jerry): Push the log file to GCS even if there's a Docker error.
         # TODO(jerry): StackDriver logging.
         # TODO(jerry): Implement timeouts.
         # TODO(jerry): Parallelize Docker pull with pulling inputs.
         name = self['name']
-        errors = []
+        errors = []  # type: List[str]
+        lines = []  # type: List[str]
+
         def check(success, or_error):
             if not success:
                 errors.append(or_error)
+
         def epilog():
             # TODO(jerry): Include the elapsed time and the timeout parameter.
-            return '{} task {}: {}'.format(
+            return '{} task {} {}'.format(
                 'Failed' if errors else 'Successful', name, errors if errors else '')
 
         print('Starting task: {}'.format(name))
 
-        docker_client = docker.from_env()
-        ins = self.setup_mounts('inputs')
-        outs = self.setup_mounts('outputs')
-        lines = []  # type: List[str]
-
         try:
+            docker_client = docker.from_env()
             image = self.pull_docker_image(docker_client)
+
+            ins = self.setup_mounts('inputs')
+            outs = self.setup_mounts('outputs')
+            print('ins = {}'.format(ins))  # *** DEBUG
+            print('ous = {}'.format(outs))  # *** DEBUG
 
             check(self.pull_from_gcs(ins), 'Failed to pull inputs')
 
