@@ -100,8 +100,7 @@ class Fireworker(object):
                 if idled >= (self.idle_for_waiters if future_work else self.idle_for_queued):
                     return
 
-                if gcp.instance_metadata(
-                        'attributes/quit', '', complain_off_gcp=False) == 'when-idle':
+                if gcp.instance_metadata('attributes/quit') == 'when-idle':
                     fw_utilities.log_multi(self.logger, 'Requested to quit when-idle')
                     return
 
@@ -163,8 +162,9 @@ def main(development=False):
         if logdir:
             fp.makedirs(logdir)
 
+        redacted_config = dict(lpad_config, password='*****')
         print('\nStarting fireworker on {} with LaunchPad config: {}\n'.format(
-            instance_name, lpad_config))
+            instance_name, redacted_config))
 
         fireworker = Fireworker(lpad_config, instance_name)
         fireworker.launch_rockets()

@@ -129,7 +129,7 @@ class ComputeEngine(object):
         options = {
             'project': project,
             'image-project': project,
-            'zone': gcp.zone(complain_off_gcp=False),
+            'zone': gcp.zone(),
             'machine-type': 'n1-standard-1',
             'subnet': 'default',
             'network-tier': 'PREMIUM',
@@ -173,7 +173,7 @@ class ComputeEngine(object):
         project = gcp.project()
         options = {
             'project': project,
-            'zone': gcp.zone(complain_off_gcp=False)}
+            'zone': gcp.zone()}
         options.update(command_options or {})
 
         options_list = _options_list(options)
@@ -207,7 +207,7 @@ class ComputeEngine(object):
         metadata_string = _join_metadata(metadata)
         options = {
             'project': project,
-            'zone': gcp.zone(complain_off_gcp=False),
+            'zone': gcp.zone(),
             'metadata': metadata_string}
         options.update(command_options or {})
 

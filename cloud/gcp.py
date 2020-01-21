@@ -47,22 +47,21 @@ def project():
     return gcloud_get_config('core/project')
 
 
-def zone(complain_off_gcp=True):
-    # type: (bool) -> str
+def zone():
+    # type: () -> str
     """Get the current Google Compute Platform (GCP) zone from the metadata
     server when running on Google Cloud, else from the `gcloud` command line tool.
     """
-    zone_metadata = instance_metadata(
-        'zone', '', complain_off_gcp=complain_off_gcp).split('/')[-1]
+    zone_metadata = instance_metadata('zone', '').split('/')[-1]
     return zone_metadata or gcloud_get_config('compute/zone')
 
 
-def instance_metadata(field, default=None, complain_off_gcp=True):
-    # type: (str, str, bool) -> Optional[str]
+def instance_metadata(field, default=None):
+    # type: (str, str) -> Optional[str]
     """Get a metadata field like the "name", "zone", or "attributes/db" (for
     custom metadata field "db") of this Google Compute Engine VM instance from
-    the GCP metadata server. On a ConnectionError (when not running on Google
-    Cloud), print a message if `complain_off_gcp`, then return `default`.
+    the GCP metadata server. If it can't contact the Metadata server (not
+    running on Google Cloud) return `default`.
 
     "attributes/*" metadata fields can be set when creating a GCE instance:
     `gcloud compute instances create worker --metadata db=fred ...`
@@ -77,18 +76,15 @@ def instance_metadata(field, default=None, complain_off_gcp=True):
         r = requests.get(url, headers=headers, timeout=timeout)
         return r.text if r.status_code == 200 else default
     except requests.exceptions.RequestException as e:
-        if complain_off_gcp:
-            print('''Note: Couldn't connect to the GCP Metadata server to get "{}".'''
-                  .format(field))
         return default
 
 
-def gce_instance_name(complain_off_gcp=True):
-    # type: (bool) -> str
+def gce_instance_name():
+    # type: () -> str
     """Return this GCE VM instance name if running on GCE, or None if not
     running on GCE.
     """
-    return instance_metadata('name', complain_off_gcp=complain_off_gcp)
+    return instance_metadata('name')
 
 
 def delete_this_vm(exit_code=0):
@@ -96,7 +92,7 @@ def delete_this_vm(exit_code=0):
     """Ask gcloud to delete this GCE VM instance if running on GCE. In any case
     exit Python if not already shut down, and Python cleanup actions might run.
     """
-    name = gce_instance_name(complain_off_gcp=False)
+    name = gce_instance_name()
 
     if name:
         print('Deleting GCE VM "{}"...'.format(name))
