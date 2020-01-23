@@ -197,9 +197,11 @@ class DockerTask(FiretaskBase):
         """Push outputs to GCS. Return True if successful."""
         # TODO(jerry): Parallelize.
         ok = True
-        print('Pushing {} outputs to GCS: {}'.format(
-            len(to_push), [mapping.sub_path for mapping in to_push]))
-        gcs = st.CloudStorage(self['storage_prefix'])
+        prefix = self['storage_prefix']
+
+        print('Pushing {} outputs to GCS {}: {}'.format(
+            len(to_push), prefix, [mapping.sub_path for mapping in to_push]))
+        gcs = st.CloudStorage(prefix)
 
         for mapping in to_push:
            ok = gcs.upload_tree(mapping.local, mapping.sub_path) and ok
@@ -211,9 +213,11 @@ class DockerTask(FiretaskBase):
         """Pull inputs from GCS. Return True if successful."""
         # TODO(jerry): Parallelize.
         ok = True
-        print('Pulling {} inputs from GCS: {}'.format(
-            len(to_pull), [mapping.sub_path for mapping in to_pull]))
-        gcs = st.CloudStorage(self['storage_prefix'])
+        prefix = self['storage_prefix']
+
+        print('Pulling {} inputs from GCS {}: {}'.format(
+            len(to_pull), prefix, [mapping.sub_path for mapping in to_pull]))
+        gcs = st.CloudStorage(prefix)
 
         for mapping in to_pull:
             ok = gcs.download_tree(mapping.sub_path, mapping.local_prefix) and ok
@@ -266,7 +270,7 @@ class DockerTask(FiretaskBase):
 
         def epilog():
             # TODO(jerry): Include the elapsed time and the timeout parameter.
-            return '{} task {} {}'.format(
+            return '{} task: {} {}'.format(
                 'Failed' if errors else 'Successful', name, errors if errors else '')
 
         print('Starting task: {}'.format(name))

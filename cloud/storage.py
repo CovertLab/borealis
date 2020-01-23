@@ -52,6 +52,33 @@ class CloudStorage(object):
     See https://cloud.google.com/storage/docs/naming about legal bucket and
     blob (aka object) names, and note that bucket names are public and must be
     globally unique.
+
+    For running on Google Compute Engine (GCE), its service account needs these
+    permissions [TODO: all of them?]:
+        Service Account User
+        Compute Instance Admin v1
+        Logs Writer
+        Storage Object Admin
+        Project Viewer
+    and the server should have these access scopes:
+        Cloud Debugger Enabled?
+        Compute Engine Read Write?
+        Service Control Enabled
+        Service Management Read Write? [Read Only?]
+        Stackdriver Logging Write Only
+        Stackdriver Monitoring Write Only
+        Stackdriver Trace Write Only
+        Storage Read Write
+
+    For running off GCE, configure a service account "fireworker" with the above
+    permissions, get its private key:
+        PROJECT="$(gcloud config get-value core/project)"
+        FIREWORKER_KEY="${HOME}/bin/fireworker.json"
+        gcloud iam service-accounts keys create "${FIREWORKER_KEY}" \
+            --iam-account "fireworker@${PROJECT}.iam.gserviceaccount.com"
+    and add to the shell .profile:
+        echo "export GOOGLE_APPLICATION_CREDENTIALS=${FIREWORKER_KEY}" >> ~/.profile
+    This will avoid the quota warning and cutoff.
     """
 
     #: For efficiency, retrieve just these Blob metadata fields.
@@ -79,8 +106,6 @@ class CloudStorage(object):
             # exists, but it trips over an empty name.
             raise ValueError("Invalid bucket name: '{}'".format(self.bucket_name))
 
-        # TODO(jerry): Use a service account even when running outside GCE to
-        #  avoid that warning? Suppress the warning?
         self.client = Client()
         self.bucket = self.client.get_bucket(self.bucket_name)
 

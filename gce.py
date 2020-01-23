@@ -117,7 +117,7 @@ class ComputeEngine(object):
         running it, or if `verbose`, this prints the `gcloud` command before
         running it.
         """
-        assert 0 <= count < self.MAX_VMS, 'instance count ({}) must be in the range [0 .. {}]'.format(
+        assert 0 <= count <= self.MAX_VMS, 'create-instance count ({}) must be in the range [0 .. {}]'.format(
             count, self.MAX_VMS)
         instance_names = self.make_names(base, count)
 
