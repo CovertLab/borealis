@@ -3,7 +3,13 @@
 #   > sudo systemctl start borealis-fireworker
 #   > sudo systemctl enable borealis-fireworker
 #
-# Docs: man systemd.service; man systemd.exec
+# Stop it via:
+#   > sudo systemctl stop borealis-fireworker
+#
+# Watch its output via
+#   > sudo journalctl -u borealis-fireworker
+#
+# For documentation see: man systemd.service; man systemd.exec
 
 [Unit]
 Description=A FireWorks worker on Google Compute Engine
@@ -15,7 +21,6 @@ Type=simple
 ExecStart=/bin/bash /home/fireworker/borealis/script/startup.sh
 User=fireworker
 Group=fireworker
-Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/fireworker/.cloud.json
 
 [Install]
 WantedBy=multi-user.target
