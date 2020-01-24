@@ -12,7 +12,7 @@ After=networking.service
 
 [Service]
 Type=simple
-ExecStart=/bin/bash /home/fireworker/borealis/script/boot.sh
+ExecStart=/bin/bash /home/fireworker/borealis/script/startup.sh
 User=fireworker
 Group=fireworker
 Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/fireworker/.cloud.json
