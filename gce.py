@@ -134,9 +134,9 @@ class ComputeEngine(object):
             'subnet': 'default',
             'network-tier': 'PREMIUM',
             'maintenance-policy': 'MIGRATE',
-            'boot-disk-size': '200GB',
             'boot-disk-type': 'pd-standard',
-            'scopes': SCOPES}
+            'scopes': SCOPES,
+        }
         options.update(command_options or {})
 
         metadata_string = _join_metadata(metadata)

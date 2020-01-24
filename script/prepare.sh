@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
-# Set up the machine to run as a Borealis Fireworker.
+# Set up a GCE Disk Image for a Borealis Fireworker.
 #
-### TODO: This is untested and unfinished! ###
+# NOTE: Most of the comment lines are instructions to carry out manually.
+# The non-comment lines are best run by pasting one section at a time into an
+# ssh shell, watching for errors.]
 #
-# PREREQUISITES:
-# * Create a Google Cloud Platform project.
+# * Create a Google Cloud Platform project if you don't have one already.
 # * In the Google Cloud Platform Console > IAM > Service Accounts
 #   https://console.cloud.google.com/iam-admin/serviceaccounts create a
 #   Service Account "fireworker" and grant it access to your Cloud project.
 # * In the Google Cloud Platform Console > IAM
 #   https://console.cloud.google.com/iam-admin/iam grant these permissions to
-#   your Compute Engine default service account and to the fireworker service
+#   your Compute Engine default service account *and* to the fireworker service
 #   account:
 #       Service Account User
 #       Compute Instance Admin v1
 #       Logs Writer
 #       Storage Object Admin  -- [need Storage Admin to delete VMs and disks?]
 #       Project Viewer
-#       [More broadly: Compute Admin? Storage Admin?]
-# * Create a Compute Engine VM instance (to create a Disk Image)
-#   https://console.cloud.google.com/compute/instancesAdd
+# * Create a Compute Engine VM instance (to create a Disk Image) using the
+#   console https://console.cloud.google.com/compute/instancesAdd or a
+#   `gcloud compute instances create` command line.
 #     Name: fireworker
 #     Region & Zone: <where you want to run everything>
 #     Machine family/series: N1 n1-standard-1 [or other. You'll be able to use the
@@ -41,14 +42,8 @@
 #       Storage Read Write
 #   Management > Description: Fireworks worker
 #
-#   or use a command line similar to this:
-#     gcloud beta compute instances create fireworker --description="Fireworks worker" --machine-type=n1-standard-1 --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --scopes=https://www.googleapis.com/auth/cloud_debugger,https://www.googleapis.com/auth/compute,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/service.management,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/trace.append,https://www.googleapis.com/auth/devstorage.read_write --image=ubuntu-1910-eoan-v20200107 --image-project=ubuntu-os-cloud --boot-disk-size=200GB --boot-disk-type=pd-standard --boot-disk-device-name=fireworker --reservation-affinity=any
-#
-# Then access it via `gcloud compute ssh fireworker` and do the steps below.
-#
-### TODO: Remove the scopes from the gce.py script now that the service account has them?
-
-set -eu
+# * Then access the VM via `gcloud compute ssh fireworker` to run the following
+#   steps.
 
 sudo apt update
 sudo apt upgrade
@@ -72,7 +67,7 @@ sudo chgrp ubuntu /usr/local/bin/sdk
 sudo chmod g+ws /usr/local/bin/sdk
 bash install.sh --install-dir=/usr/local/bin/sdk --disable-prompts
 
-### Add these lines to your .profile file, then source .profile or restart your shell:
+### Add these lines to the ~/.profile file, then run them or restart the shell:
 #     . /usr/local/bin/sdk/google-cloud-sdk/path.bash.inc
 #     . /usr/local/bin/sdk/google-cloud-sdk/completion.bash.inc
 
@@ -86,8 +81,8 @@ sudo ln -s /usr/local/bin/sdk/google-cloud-sdk/bin/docker-credential-gcr /usr/lo
 sudo systemctl enable docker
 sudo systemctl start docker
 
-# Add yourself [and all `ubuntu` group members?] to the `docker` group so
-# so you won't have to run docker commands under `sudo`.
+# Join the `docker` group so you won't need to use `sudo` to run docker commands.
+# It won't take effect until you log out and back in.
 sudo usermod -aG docker $USER
 
 echo Test docker:
@@ -95,14 +90,15 @@ docker --version
 docker info
 docker pull python:2.7.16
 
-# Set gcloud to authenticate to Docker repositories.
+# Set up to authenticate to gcr Docker repositories.
 docker-credential-gcr configure-docker
 
-
-sudo adduser --disabled-password fireworker  # How to suppress promptss for inputs?
+# Create and switch to the fireworker user.
+sudo adduser --disabled-password fireworker  # suppress input prompts?
 sudo usermod -aG docker fireworker
 sudo su -l fireworker
 
+# Set up the software environment for borealis-fireworker
 curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
 {
   echo 'export PATH="$HOME/.pyenv/bin:$PATH"'
@@ -123,36 +119,32 @@ pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clo
 pip install -r requirements.txt
 pyenv rehash
 
-### TODO?: `docker-credential-gcr configure-docker`? Same as `gcloud auth configure-docker`?
-
 cp example_my_launchpad.yaml my_launchpad.yaml
-echo TO DO: Edit my_launchpad.yaml to access your MongoDB instance and
-echo optionally set a logdir like /home/fireworker/fw/logs to enable Fireworks logging.
 
-### Set gcloud config parameters?: compute/region, compute/zone, core/project
+# Edit my_launchpad.yaml to have connection info for your MongoDB instance, and
+# optionally set a logdir like /home/fireworker/fw/logs to enable Fireworks logging.
 
-### TODO: Skip this and let ADC use the default service account?
-PROJECT="$(gcloud config get-value core/project)"
-mkdir -p "${HOME}/bin/"
-FIREWORKER_KEY="${HOME}/bin/fireworker.json"
-gcloud iam service-accounts keys create "${FIREWORKER_KEY}" --iam-account "fireworker@${PROJECT}.iam.gserviceaccount.com"
-EXPORT="export GOOGLE_APPLICATION_CREDENTIALS=${FIREWORKER_KEY}"
-echo "" >> ~/.profile
-echo $EXPORT >> ~/.profile
-$EXPORT
+# Follow the instructions in script/borealis-fireworker.service to set up the systemd service.
 
-### TODO: Proper args?
-gcloud auth activate-service-account fireworker@${PROJECT}.iam.gserviceaccount.com --key-file "${FIREWORKER_KEY}"
-gcloud auth configure-docker
-cat "${FIREWORKER_KEY}" | docker login -u _json_key --password-stdin https://gcr.io
-### TODO: Re-run `gcloud init`? `gcloud auth login`?
+# Make a disk image in the disk image family "fireworker":
+# > sudo shutdown -h now
+# * Watch the Compute Engine > VM instances page to see when this VM has fully stopped.
+# * Find this disk (e.g. "fireworker") in the Compute Engine > Disks console page.
+# * Click "CREATE IMAGE".
+# * Name the image like "fireworker-v0", picking the next number in the fireworker series.
+# * Set "Family" to "fireworker"  <-- MUST DO THIS so future images can supersede it.
+# * Set "Description" to "Fireworks worker node" or some such to document this Image.
+# * Click "Create".
+# * When it finishes, delete this GCE VM and its boot disk, using gcloud or the console.
 
-echo
-echo TO DO: Follow the instructions in borealis-fireworker.service to set up the systemd service.
-
-echo TO DO: Make a disk image in the disk image family "fireworker".
-### Once fully created, stop the VM and make a GCE disk image from its disk,
-###   e.g. called "fireworker-v0" in the disk image family "fireworker".
-### To make a disk image, run `sudo shutdown -h now`, wait for the GCE VM to stop, then find the
-### disk on the Google Compute Engine > Images page, click CREATE IMAGE, and fill in the form.
-###     Family: fireworker      # <=== MUST SET THIS ===
+# To update this disk image in the future:
+# * Start a VM from this disk image, using the console, gcloud, or the gce.py script.
+# * `gcloud compute ssh <NAME>` to it.
+# * Stop the service:
+#   > sudo systemctl stop borealis-fireworker
+# * Upgrade apts (sudo apt upgrade), reboot if you upgraded any or it said
+#   `*** System restart required ***`, ssh again, and stop the service again.
+# * Pull new Docker images that you want preloaded. Clean up old ones.
+# * Repeat the "Make a disk image" steps, above.
+# * Test the new disk image. If it doesn't work, you can mark it "deprecated" in
+#   the Image Family so new launches will use a previous Disk Image.
