@@ -42,7 +42,7 @@ class Fireworker(object):
 
         self.sleep_secs = 10
         self.idle_for_waiters = 60 * 60
-        self.idle_for_queued = 15 * 60
+        self.idle_for_queued = 15 * 60  # TODO(jerry): Rename this
 
         self.launchpad = LaunchPad(**lpad_config)
 
