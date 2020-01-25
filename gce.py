@@ -32,12 +32,15 @@ from cloud import gcp
 
 
 #: Access permissions to grant to created GCE VMs.
-SCOPES = ('storage-rw,'
-          'logging-write,'
-          'monitoring-write,'
-          'service-control,'
-          'service-management,'
-          'trace')
+SCOPES = ','.join([
+    'compute-rw',
+    'logging-write',
+    'storage-rw',
+    'monitoring-write',
+    'service-control',
+    'service-management',
+    'trace',
+])
 
 
 def _clean(token):

@@ -1,4 +1,4 @@
-# Copy this file to /etc/systemd/system/borealis-fireworker.service
+# sudo cp this file to /etc/systemd/system/borealis-fireworker.service
 # then:
 #   > sudo systemctl start borealis-fireworker
 #   > sudo systemctl enable borealis-fireworker
@@ -6,8 +6,8 @@
 # Stop it via:
 #   > sudo systemctl stop borealis-fireworker
 #
-# Watch its output via
-#   > sudo journalctl -u borealis-fireworker
+# Follow its output via
+#   > sudo journalctl -u borealis-fireworker -f
 #
 # For documentation see: man systemd.service; man systemd.exec
 
