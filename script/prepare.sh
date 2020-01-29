@@ -8,8 +8,8 @@
 ##
 ##
 # * Create a Google Cloud Platform project if you don't have one already.
-#   If needed, enable Compute Engine, Cloud Storage, StackDriver Logging, IAM,
-#   Container Registry, and Cloud Build.
+#   If needed, enable billing, Compute Engine, Cloud Storage, StackDriver
+#   Logging, IAM, Container Registry, and Cloud Build.
 # * In the Google Cloud Platform Console > IAM > Service Accounts
 #   https://console.cloud.google.com/iam-admin/serviceaccounts create a
 #   Service Account "fireworker" and grant it access to your Cloud project.
@@ -20,7 +20,7 @@
 #       Service Account User
 #       Compute Instance Admin v1
 #       Logs Writer
-#       Storage Object Admin  -- [need Storage Admin to delete VMs and disks?]
+#       Storage Object Admin
 #       Project Viewer
 # * Create a Compute Engine VM instance (to create a Disk Image) using the
 #   console https://console.cloud.google.com/compute/instancesAdd or a
@@ -162,7 +162,8 @@ cp example_my_launchpad.yaml my_launchpad.yaml
 # * Find this disk (e.g. "fireworker") in the Compute Engine > Disks console page.
 # * Click "CREATE IMAGE".
 # * Name the image like "fireworker-v0", picking the next number in the fireworker series.
-# * Set "Family" to "fireworker"  <== MUST DO THIS so future images can supersede it.
+# * Set "Family" to "fireworker"  <== MUST DO THIS. The launch-workers script will
+#   instantiate workers by Disk Image Family so future images can supersede it.
 # * Set "Description" to "Fireworks worker node" or some such to document this Image.
 # * Click "Create".
 # * When it finishes, delete this GCE VM and its boot disk using gcloud or the console.

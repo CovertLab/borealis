@@ -97,7 +97,8 @@ def delete_this_vm(exit_code=0):
     if name:
         print('Deleting GCE VM "{}"...'.format(name))
         my_zone = zone()
-        # TODO(jerry): If it returns an exit code, log its stderr text.
+        # TODO(jerry): If gcloud returns an exit code, log its stderr text
+        #  from the CalledProcessError stderr attr.
         fp.run_cmd(['gcloud', '--quiet', 'compute', 'instances', 'delete',
                     name, '--zone', my_zone])
     else:

@@ -31,15 +31,15 @@ from typing import Any, Dict, List, Optional
 from cloud import gcp
 
 
-#: Access permissions to grant to created GCE VMs.
+#: Access Scopes for the created GCE VMs.
 SCOPES = ','.join([
-    'compute-rw',
-    'logging-write',
-    'storage-rw',
-    'monitoring-write',
-    'service-control',
-    'service-management',
-    'trace',
+    'compute-rw',           # for the instance to delete itself when done
+    'logging-write',        # to write StackDriver logs
+    'storage-rw',           # to read/write GCS files
+    'monitoring-write',     # to emit data for load monitoring
+    'service-control',      # ?
+    'service-management',   # ?
+    'trace',                # for debugging [TODO: Try it]
 ])
 
 

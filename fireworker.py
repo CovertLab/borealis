@@ -1,8 +1,11 @@
 #!/usr/bin/env python
-"""A Fireworks worker on Google Compute Engine to "rapidfire" launch rockets."""
+"""A Fireworks worker on Google Compute Engine to "rapidfire" launch rockets.
 
-# TODO(jerry): Investigate GCE Live Migration, Maintenance events, preemptible
-# instances, availability policies, and restart behavior.
+NOTE: When running as a systemd service or otherwise outside an interactive
+console, set the `PYTHONUNBUFFERED=1` environment variable or run with
+`python -u fireworker.py` so the logging output comes out in real time rather
+than buffering up into long delayed chunks.
+"""
 
 from __future__ import absolute_import, division, print_function
 
@@ -51,7 +54,7 @@ class Fireworker(object):
             l_dir=self.launchpad.get_logdir(),
             stream_level=self.strm_lvl)
 
-        # Could optionally set a specific `category` of jobs to pull, a `query`
+        # Can optionally set a specific `category` of jobs to pull, a `query`
         # to restrict the type of Fireworks to run, and an `env` to pass
         # worker-specific into to the Firetasks.
         self.fireworker = FWorker(instance_name)
@@ -111,6 +114,11 @@ class Fireworker(object):
                 idled += self.sleep_secs
 
 
+class Redacted(object):
+    def __repr__(self):
+        return '*****'
+
+
 def main(development=False):
     # type: (bool) -> None
     """Run as a FireWorks worker node on Google Compute Engine (GCE), launching
@@ -162,7 +170,7 @@ def main(development=False):
         if logdir:
             fp.makedirs(logdir)
 
-        redacted_config = dict(lpad_config, password='*****')
+        redacted_config = dict(lpad_config, password=Redacted())
         print('\nStarting fireworker on {} with LaunchPad config: {}\n'.format(
             instance_name, redacted_config))
 

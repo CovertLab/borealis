@@ -53,32 +53,20 @@ class CloudStorage(object):
     blob (aka object) names, and note that bucket names are public and must be
     globally unique.
 
-    For running on Google Compute Engine (GCE), its service account needs these
-    permissions [TODO: all of them?]:
-        Service Account User
-        Compute Instance Admin v1
-        Logs Writer
+    To run on Google Compute Engine (GCE), the VM needs access Scopes:
+        Storage Read Write (storage-rw)
+    and its Service Account needs Permissions:
         Storage Object Admin
-        Project Viewer
-    and the server should have these access scopes:
-        Cloud Debugger Enabled?
-        Compute Engine Read Write?
-        Service Control Enabled
-        Service Management Read Write? [Read Only?]
-        Stackdriver Logging Write Only
-        Stackdriver Monitoring Write Only
-        Stackdriver Trace Write Only
-        Storage Read Write
 
-    For running off GCE, configure a service account "fireworker" with the above
-    permissions, get its private key:
+    To run off GCE, configure a service account "fireworker" with the above
+    permissions, get its private key as a json file:
         PROJECT="$(gcloud config get-value core/project)"
         FIREWORKER_KEY="${HOME}/bin/fireworker.json"
         gcloud iam service-accounts keys create "${FIREWORKER_KEY}" \
             --iam-account "fireworker@${PROJECT}.iam.gserviceaccount.com"
-    and add to the shell .profile:
+    and append an `export` statement to the shell .profile:
         echo "export GOOGLE_APPLICATION_CREDENTIALS=${FIREWORKER_KEY}" >> ~/.profile
-    This will avoid the quota warning and cutoff.
+    This will avoid a quota warning and limit.
     """
 
     #: For efficiency, retrieve just these Blob metadata fields.
