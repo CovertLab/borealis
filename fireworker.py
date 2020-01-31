@@ -10,38 +10,59 @@ than buffering up into long delayed chunks.
 from __future__ import absolute_import, division, print_function
 
 import argparse
-import os
+import logging
 import socket
 import sys
 import time
-import traceback
 
 from fireworks import LaunchPad, FWorker
 from fireworks.core import rocket_launcher
-from fireworks.utilities import fw_utilities
+import google.cloud.logging as gcl
 import ruamel.yaml as yaml
 from typing import Any, Dict
 
 from cloud import gcp
-from util import filepath as fp
 
 
-# The standard launchpad config file. We'll read it and override some fields.
+
+#: The standard launchpad config filename. Read it and override some fields.
 LAUNCHPAD_FILE = 'my_launchpad.yaml'
 
-# Default directory for FireWorks logs.
-DEFAULT_LOGDIR = os.path.join(os.environ.get('HOME', os.getcwd()), 'logs', 'worker')
+#: Fireworker logger.
+FW_LOGGER = logging.getLogger('fireworker')
+FW_LOGGER.setLevel(logging.DEBUG)
+
+#: Fireworker console-only logger.
+FW_CONSOLE_LOGGER = logging.getLogger('fireworker.console')
+FW_CONSOLE_LOGGER.setLevel(logging.DEBUG)
+FW_CONSOLE_LOGGER.propagate = False
 
 
-# TODO(jerry): Use StackDriver logging. Redirect FireWorks logging?
+def setup_logging(instance_name):
+    # type: (str) -> None
+    """Set up GCP StackDriver logging for the given GCE instance name, if
+    running on GCE with Python's root logger.
+    """
+    # TODO(jerry): Set the StackDriver resource type (GCE VM) and name.
+
+    for log_name in ('launchpad', 'rocket.launcher'):
+        logging.getLogger(log_name).setLevel('INFO')
+
+    # TODO(jerry): Don't enable StackDriver logging when running locally (or
+    #  limit it to WARNING+ level) to reduce cost and quota usage.
+    # if instance_name: ...
+    client = gcl.Client()
+    exclude = (FW_CONSOLE_LOGGER.name, 'docker', 'urllib3')
+    client.setup_logging(log_level=logging.WARNING, excluded_loggers=exclude)
+
 
 class Fireworker(object):
 
-    def __init__(self, lpad_config, instance_name):
+    def __init__(self, lpad_config, host_name):
         # type: (Dict[str, Any], str) -> None
         self.lpad_config = lpad_config
         self.strm_lvl = lpad_config.get('strm_lvl') or 'INFO'
-        self.instance_name = instance_name
+        self.host_name = host_name
 
         self.sleep_secs = 10
         self.idle_for_waiters = 60 * 60
@@ -49,29 +70,12 @@ class Fireworker(object):
 
         self.launchpad = LaunchPad(**lpad_config)
 
-        self.logger = fw_utilities.get_fw_logger(
-            'fireworker',
-            l_dir=self.launchpad.get_logdir(),
-            stream_level=self.strm_lvl)
-
         # Can optionally set a specific `category` of jobs to pull, a `query`
         # to restrict the type of Fireworks to run, and an `env` to pass
         # worker-specific into to the Firetasks.
-        self.fireworker = FWorker(instance_name)
+        self.fireworker = FWorker(host_name)
 
     def launch_rockets(self):
-        # type: () -> None
-        """Launch rockets, logging exceptions."""
-        try:
-            self._launch_rockets()
-        except KeyboardInterrupt as e:
-            fw_utilities.log_multi(self.logger, repr(e), 'error')
-            raise
-        except Exception:
-            fw_utilities.log_exception(self.logger, 'fireworker exception')
-            raise
-
-    def _launch_rockets(self):
         # type: () -> None
         """Keep launching rockets that are ready to go. Stop after:
           * idling idle_for_waiters secs for WAITING rockets to become ready,
@@ -104,12 +108,12 @@ class Fireworker(object):
                     return
 
                 if gcp.instance_metadata('attributes/quit') == 'when-idle':
-                    fw_utilities.log_multi(self.logger, 'Requested to quit when-idle')
+                    FW_LOGGER.info('Quitting by "when-idle" request')
                     return
 
-                fw_utilities.log_multi(
-                    self.logger,
-                    'Sleeping for {} secs waiting for rockets to launch'.format(self.sleep_secs))
+                FW_CONSOLE_LOGGER.info(
+                    'Sleeping for %s secs waiting for launchable rockets',
+                    self.sleep_secs)
                 time.sleep(self.sleep_secs)
                 idled += self.sleep_secs
 
@@ -151,10 +155,13 @@ def main(development=False):
     exit_code = 1
 
     try:
+        instance_name = gcp.gce_instance_name()
+        host_name = instance_name or socket.gethostname()
+        setup_logging(instance_name)
+
         with open(LAUNCHPAD_FILE) as f:
             lpad_config = yaml.safe_load(f)  # type: dict
 
-        instance_name = gcp.gce_instance_name() or socket.gethostname()
         db_name = (gcp.instance_metadata('attributes/db')
                    or lpad_config.get('name', 'default_fireworks_database'))
         lpad_config['name'] = db_name
@@ -166,39 +173,40 @@ def main(development=False):
         lpad_config['username'] = username
         lpad_config['password'] = password
 
-        logdir = lpad_config.setdefault('logdir', DEFAULT_LOGDIR)
-        if logdir:
-            fp.makedirs(logdir)
-
         redacted_config = dict(lpad_config, password=Redacted())
-        print('\nStarting fireworker on {} with LaunchPad config: {}\n'.format(
-            instance_name, redacted_config))
+        FW_LOGGER.warning(
+            '\nStarting Fireworker on %s with LaunchPad config: %s\n',
+            host_name, redacted_config)
 
-        fireworker = Fireworker(lpad_config, instance_name)
+        fireworker = Fireworker(lpad_config, host_name)
         fireworker.launch_rockets()
 
         exit_code = 0
     except KeyboardInterrupt:
-        print('KeyboardInterrupt -- exiting')
+        FW_LOGGER.warning('KeyboardInterrupt -- exiting')
         sys.exit(2)
     except Exception:
-        print('\nfireworker error: {}'.format(traceback.format_exc()))
+        FW_LOGGER.exception('Fireworker error')
 
     shut_down(development, exit_code)
 
 
 def shut_down(development, exit_code):
     # type: (bool, int) -> None
-    """Shut down this program or this entire GCE VM (if running on GCE)."""
+    """Shut down this program or this entire GCE VM (if running on GCE and not
+    `development`).
+    """
     if development:
         sys.exit(exit_code)
     else:
         if exit_code:  # an unexpected failure, e.g. missing a needed pip
-            print('Delaying before deleting this GCE VM to allow some time to'
-                  ' connect to it, stop this service, fix the problem, and save'
-                  ' a fixed Disk Image.')
+            FW_LOGGER.warning(
+                'Delaying before deleting this GCE VM to allow some time to'
+                ' connect to it and stop this service so you can fix the problem'
+                ' and make a new Disk Image.')
             time.sleep(15 * 60)
-            print("Time's up.")
+
+        FW_LOGGER.warning("Fireworker shutting down.")
         gcp.delete_this_vm(exit_code)
 
 

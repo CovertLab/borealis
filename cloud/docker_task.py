@@ -8,6 +8,7 @@ in addition to writing them to a GCS bucket.
 from __future__ import absolute_import, division, print_function
 
 from collections import namedtuple
+import logging
 import os
 from pprint import pprint
 import shutil
@@ -47,20 +48,20 @@ def captures(path):
 
 @explicit_serialize
 class DockerTask(FiretaskBase):
-    _fw_name = "DockerTask"
+    _fw_name = 'DockerTask'
 
     # Parms
     # -----
-    # name: a task name for logs and such.
+    # name: the payload task name, for logging.
     #
-    # image: the Docker image to pull.
+    # image: the Docker Image to pull.
     #
-    # command: the command tokens to run inside the Docker container.
+    # command: the shell command tokens to run in the Docker Container.
     #
-    # internal_prefix: the base pathname inside the Docker container for inputs
-    #   and outputs.
+    # internal_prefix: the base pathname inside the Docker Container for inputs
+    #   and outputs (files and directory trees).
     #
-    # storage_prefix: the base pathname in GCS for inputs and outputs.
+    # storage_prefix: the GCS base pathname for inputs and outputs.
     #
     # inputs, outputs: absolute pathnames internal to the Docker container of
     #   input/output files and directories to pull/push to GCS. DockerTask will
@@ -99,6 +100,15 @@ class DockerTask(FiretaskBase):
 
     LOCAL_BASEDIR = os.path.join(os.sep, 'tmp', 'fireworker')
 
+    def _log(self):
+        # type: () -> logging.Logger
+        """Return a Logger for this task."""
+        parent = logging.getLogger('dockerfiretask')
+        parent.setLevel(logging.DEBUG)
+
+        name = 'dockerfiretask.{}'.format(self['name'])
+        return logging.getLogger(name)
+
     def pull_docker_image(self, docker_client):
         # type: (docker.DockerClient) -> Any  # a Docker Image
         """Pull the requested Docker Image. Ensure there's a tag so pull() will
@@ -107,7 +117,7 @@ class DockerTask(FiretaskBase):
         repository, tag = parse_repository_tag(self['image'])
         if not tag:
             tag = 'latest'  # 'latest' is the default tag; it doesn't mean squat
-        print('Pulling Docker image {}:{}'.format(repository, tag))
+        self._log().info('Pulling Docker image %s:%s', repository, tag)
         return docker_client.images.pull(repository, tag)
 
     def rebase(self, internal_path, new_prefix):
@@ -184,7 +194,7 @@ class DockerTask(FiretaskBase):
                         if hr:
                             f.write('{}\n\n{}\n'.format(hr, epilogue))
                 except IOError as e:
-                    print('Error capturing to {}: {}'.format(out.local, e))
+                    self._log().exception('Error capturing to %s', out.local)
                     # TODO(jerry): Count this as a task failure?
 
             if success or out.captures == '>>':
@@ -199,8 +209,8 @@ class DockerTask(FiretaskBase):
         ok = True
         prefix = self['storage_prefix']
 
-        print('Pushing {} outputs to GCS {}: {}'.format(
-            len(to_push), prefix, [mapping.sub_path for mapping in to_push]))
+        self._log().info('Pushing %s outputs to GCS %s: %s',
+            len(to_push), prefix, [mapping.sub_path for mapping in to_push])
         gcs = st.CloudStorage(prefix)
 
         for mapping in to_push:
@@ -215,8 +225,8 @@ class DockerTask(FiretaskBase):
         ok = True
         prefix = self['storage_prefix']
 
-        print('Pulling {} inputs from GCS {}: {}'.format(
-            len(to_pull), prefix, [mapping.sub_path for mapping in to_pull]))
+        self._log().info('Pulling %s inputs from GCS %s: %s',
+            len(to_pull), prefix, [mapping.sub_path for mapping in to_pull])
         gcs = st.CloudStorage(prefix)
 
         for mapping in to_pull:
@@ -257,12 +267,10 @@ class DockerTask(FiretaskBase):
     def run_task(self, fw_spec):
         # type: (dict) -> Optional[FWAction]
         """Run a task as a shell command in a Docker container."""
-        # TODO(jerry): StackDriver logging.
-        # TODO(jerry): Implement timeouts.
-        # TODO(jerry): Parallelize Docker pull with pulling inputs.
         name = self['name']
         errors = []  # type: List[str]
         lines = []  # type: List[str]
+        logger = self._log()
 
         def check(success, or_error):
             if not success:
@@ -271,9 +279,9 @@ class DockerTask(FiretaskBase):
         def epilog():
             # TODO(jerry): Include the elapsed time and the timeout parameter.
             return '{} task: {} {}'.format(
-                'Failed' if errors else 'Successful', name, errors if errors else '')
+                'FAILED' if errors else 'SUCCESSFUL', name, errors if errors else '')
 
-        print('Starting task: {}'.format(name))
+        logger.warning('STARTING TASK: %s', name)
 
         try:
             docker_client = docker.from_env()
@@ -284,7 +292,7 @@ class DockerTask(FiretaskBase):
 
             check(self.pull_from_gcs(ins), 'Failed to pull inputs')
 
-            print('Running: {}'.format(self['command']))
+            logger.info('Running: %s', self['command'])
             container = docker_client.containers.run(
                 image,
                 command=self['command'],
@@ -297,7 +305,7 @@ class DockerTask(FiretaskBase):
                     # NOTE: Can call stream.close() to cancel from another thread.
                     line = line.decode()
                     lines.append(line)
-                    print(line.rstrip())
+                    logger.info('%s', line.rstrip())
 
                 exit_code = container.wait()['StatusCode']
                 check(exit_code == 0, 'Exit code {}{}'.format(
@@ -309,7 +317,7 @@ class DockerTask(FiretaskBase):
                 try:
                     container.remove(force=True)
                 except docker_errors.APIError as e:  # troubling but not a task error
-                    print('Docker error removing a container: {}'.format(e))
+                    logger.exception('Docker error removing a container')
 
             to_push = self._outputs_to_push(lines, not errors, outs, epilog())
 
@@ -324,7 +332,7 @@ class DockerTask(FiretaskBase):
             check(False, repr(e))
             raise
         finally:
-            print(epilog())
+            logger.warning('%s', epilog())
 
             # [Could wipe just os.path.join(self.LOCAL_BASEDIR, 'inputs') to
             # keep the outputs for local scrutiny.]

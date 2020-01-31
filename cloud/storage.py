@@ -1,6 +1,9 @@
 """Interface to Google Cloud Storage (GCS)."""
 
+from __future__ import absolute_import, division, print_function
+
 import itertools
+import logging
 import os
 from typing import Iterator, List, Optional, Union, Set
 
@@ -140,8 +143,7 @@ class CloudStorage(object):
                 except GoogleCloudError as e:
                     # Failing to create a dir placeholder will affect gcsfuse
                     # mounts but won't break the workflow.
-                    # TODO(jerry): Logging
-                    print('Failed to make GCS dir "{}": {}'.format(dir_name, e))
+                    logging.exception('Failed to make GCS dir "%s"', dir_name)
 
     def upload_file(self, local_path, sub_path):
         # type: (str, str) -> bool
@@ -155,13 +157,11 @@ class CloudStorage(object):
         try:
             self.make_dirs(sub_path)
 
-            # print('Uploading "{}" to GCS "{}"'.format(local_path, full_path))  # *** DEBUG ***
             blob = self.bucket.blob(full_path)
             blob.upload_from_filename(local_path)  # guesses content_type from the path
         except (GoogleCloudError, FileNotFoundError) as e:
-            # TODO(jerry): Logging
-            print('Failed to upload "{}" as GCS "{}": {!r}'.format(
-                local_path, full_path, e))
+            logging.exception(
+                'Failed to upload "%s" as GCS "%s"', local_path, full_path)
             return False
         return True
 
@@ -206,11 +206,10 @@ class CloudStorage(object):
         fp.makedirs(os.path.dirname(local_path))
 
         try:
-            # print('Downloading GCS "{}" to "{}"'.format(blob.name, local_path))  # *** DEBUG ***
             blob.download_to_filename(local_path)
         except GoogleCloudError as e:
-            print('Failed to download GCS "{}" as "{}": {!r}'.format(
-                blob.name, local_path, e))
+            logging.exception(
+                'Failed to download GCS "%s" as "%s"', blob.name, local_path)
             return False
 
         return True

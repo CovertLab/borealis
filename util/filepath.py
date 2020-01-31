@@ -3,6 +3,7 @@
 from __future__ import absolute_import, division, print_function
 
 import errno
+import logging
 import os
 import subprocess
 from typing import Optional, Sequence, Tuple
@@ -86,5 +87,5 @@ def run_cmdline(line, trim=True, timeout=TIMEOUT):
     try:
         return run_cmd(tokens=line.split(), trim=trim, timeout=timeout)
     except (OSError, subprocess.SubprocessError) as e:
-        print('failed to run command line {}: {}'.format(line, e))
+        logging.exception('Failed to run command line: %s', line)
         return None

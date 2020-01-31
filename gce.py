@@ -17,8 +17,9 @@ like "{prefix}-0", "{prefix}-1", "{prefix}-2", ...
 from __future__ import absolute_import, division, print_function
 
 import argparse
+import logging
 import os
-from pprint import pprint
+from pprint import pformat
 import re
 import sys
 
@@ -95,14 +96,14 @@ class ComputeEngine(object):
         names = ['{}-{}'.format(sanitized, i) for i in range(base, base + count)]
         return names
 
-    def _print_header(self, action, instance_names):
+    def _log_header(self, action, instance_names):
         # type: (str, List[str]) -> None
         dry = 'Dry run for: ' if self.dry_run else ''
         count = len(instance_names)
         vms = ('VMs' if count == 0
                else 'VM: {}'.format(instance_names[0]) if count == 1
                else 'VMs: {} .. {}'.format(instance_names[0], instance_names[-1]))
-        print('{}{} {} Google Compute Engine {}'.format(dry, action, count, vms))
+        logging.info('%s%s %s Google Compute Engine %s', dry, action, count, vms)
 
     def create(self, base=0, count=1, command_options=None, **metadata):
         # type: (int, int, Optional[Dict[str, Any]], **Any) -> None
@@ -116,15 +117,15 @@ class ComputeEngine(object):
         ',' and '=' characters from the metadata fields, then passes tokens to
         `gcloud` without shell quoting risks.
 
-        If `dry_run`, this prints the constructed `gcloud` command instead of
-        running it, or if `verbose`, this prints the `gcloud` command before
+        If `dry_run`, this logs the constructed `gcloud` command instead of
+        running it, or if `verbose`, this logs the `gcloud` command before
         running it.
         """
         assert 0 <= count <= self.MAX_VMS, 'create-instance count ({}) must be in the range [0 .. {}]'.format(
             count, self.MAX_VMS)
         instance_names = self.make_names(base, count)
 
-        self._print_header('Creating', instance_names)
+        self._log_header('Creating', instance_names)
         if count <= 0:
             return
 
@@ -151,7 +152,7 @@ class ComputeEngine(object):
             ] + instance_names + options_list
 
         if self.dry_run or self.verbose:
-            pprint(cmd_tokens)
+            logging.info('%s', pformat(cmd_tokens))
 
         if not self.dry_run:
             subprocess.call(cmd_tokens)
@@ -160,8 +161,8 @@ class ComputeEngine(object):
         # type: (int, int, Optional[Dict[str, Any]]) -> None
         """In parallel, delete a group of GCE VM instances.
 
-        If `dry_run`, this prints the constructed `gcloud` command instead of
-        running it, or if `verbose`, this prints the `gcloud` command before
+        If `dry_run`, this logs the constructed `gcloud` command instead of
+        running it, or if `verbose`, this logs the `gcloud` command before
         running it.
 
         If command_options includes {'quiet': None}, gcloud won't ask for
@@ -169,7 +170,7 @@ class ComputeEngine(object):
         """
         instance_names = self.make_names(base, count)
 
-        self._print_header('Deleting', instance_names)
+        self._log_header('Deleting', instance_names)
         if count <= 0:
             return
 
@@ -184,7 +185,7 @@ class ComputeEngine(object):
             ] + instance_names + options_list
 
         if self.dry_run or self.verbose:
-            pprint(cmd_tokens)
+            logging.info('%s', pformat(cmd_tokens))
 
         if not self.dry_run:
             subprocess.call(cmd_tokens)
@@ -193,8 +194,8 @@ class ComputeEngine(object):
         # type: (int, int, Optional[Dict[str, Any]], **Any) -> None
         """Set metadata fields on a group of GCE VM instances.
 
-        If `dry_run`, this prints the constructed `gcloud` command instead of
-        running it, or if `verbose`, this prints the `gcloud` command before
+        If `dry_run`, this logs the constructed `gcloud` command instead of
+        running it, or if `verbose`, this logs the `gcloud` command before
         running it.
 
         NOTE: This supports 'key=value' and 'key=' but doesn't yet support a
@@ -202,7 +203,7 @@ class ComputeEngine(object):
         """
         instance_names = self.make_names(base, count)
 
-        self._print_header('Setting metadata on', instance_names)
+        self._log_header('Setting metadata on', instance_names)
         if count <= 0:
             return
 
@@ -220,7 +221,7 @@ class ComputeEngine(object):
                 ] + options_list
 
             if self.dry_run or self.verbose:
-                pprint(cmd_tokens)
+                logging.info('%s', pformat(cmd_tokens))
 
             if not self.dry_run:
                 subprocess.call(cmd_tokens)
@@ -276,7 +277,7 @@ def main():
                 'need `-m workflow=MY_WORKFLOW_NAME` to create sisyphus workers')
         if args.family == 'fireworker':
             assert metadata.get('db'), (
-                'need `-m db=MY_DATABASE_NAME` to create fireworkers')
+                'need `-m db=MY_DATABASE_NAME` to create Fireworkers')
     elif args.action == 'metadata':
         assert metadata, 'need some metadata to set'
 

@@ -95,7 +95,7 @@ sudo systemctl enable docker
 sudo systemctl start docker
 
 ## Join the `docker` group so you can run docker commands without `sudo`.
-sudo usermod -aG docker $USER
+sudo usermod -aG docker "$USER"
 # To make it take effect, disconnect (^D) and `gcloud compute ssh fireworker` back.
 
 ## Test docker
@@ -130,7 +130,7 @@ curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer 
 source ~/.bash_aliases
 
 git clone https://github.com/CovertLab/borealis.git
-cd ~/borealis
+cd ~/borealis || exit
 
 pyenv install 3.8.0
 pyenv global 3.8.0

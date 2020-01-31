@@ -3,6 +3,7 @@
 from __future__ import absolute_import, division, print_function
 
 import errno
+import logging
 import requests
 import subprocess
 import sys
@@ -95,13 +96,13 @@ def delete_this_vm(exit_code=0):
     name = gce_instance_name()
 
     if name:
-        print('Deleting GCE VM "{}"...'.format(name))
+        logging.warning('Deleting GCE VM "%s"...', name)
         my_zone = zone()
         # TODO(jerry): If gcloud returns an exit code, log its stderr text
         #  from the CalledProcessError stderr attr.
         fp.run_cmd(['gcloud', '--quiet', 'compute', 'instances', 'delete',
                     name, '--zone', my_zone])
     else:
-        print('Exiting (not running on GCE).')
+        logging.warning('Exiting (not running on GCE).')
 
     sys.exit(exit_code)

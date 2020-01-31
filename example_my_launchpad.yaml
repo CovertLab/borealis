@@ -5,4 +5,4 @@ username: null
 password: null
 name: default_fireworks_database
 # logdir: null
-strm_lvl: INFO
+strm_lvl: WARNING
