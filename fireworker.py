@@ -15,7 +15,7 @@ import socket
 import sys
 import time
 
-from fireworks import LaunchPad, FWorker
+from fireworks import LaunchPad, FWorker, fw_config
 from fireworks.core import rocket_launcher
 import google.cloud.logging as gcl
 import ruamel.yaml as yaml
@@ -23,6 +23,7 @@ from typing import Any, Dict
 
 from cloud import gcp
 
+# import logging_tree
 
 
 #: The standard launchpad config filename. Read it and override some fields.
@@ -45,11 +46,14 @@ def setup_logging(instance_name):
     """
     # TODO(jerry): Set the StackDriver resource type (GCE VM) and name.
 
-    for log_name in ('launchpad', 'rocket.launcher'):
-        logging.getLogger(log_name).setLevel('INFO')
+    # TODO(jerry): The root logger has a stderr stream handler which will print
+    #  messages at all levels that propagate up from child loggers, and with no
+    #  format string. Set that handler's level or filter the "rocket.launcher"
+    #  and "launchpad" messages more tightly to minimize console duplicates
+    #  and StackDriver messages?
 
-    # TODO(jerry): Don't enable StackDriver logging when running locally (or
-    #  limit it to WARNING+ level) to reduce cost and quota usage.
+    # TODO(jerry): Enable StackDriver logging only when running on GCE (or limit
+    #  root AND child loggers to WARNING+ level) to reduce cost and quota usage.
     # if instance_name: ...
     client = gcl.Client()
     exclude = (FW_CONSOLE_LOGGER.name, 'docker', 'urllib3')
@@ -61,14 +65,20 @@ class Fireworker(object):
     def __init__(self, lpad_config, host_name):
         # type: (Dict[str, Any], str) -> None
         self.lpad_config = lpad_config
-        self.strm_lvl = lpad_config.get('strm_lvl') or 'INFO'
         self.host_name = host_name
+
+        # NOTE: FireWorks creates loggers with stdout stream handlers for each
+        # (name, level) pair. So setting strm_lvl='WARNING' gets both INFO and
+        # WARNING handlers which might print duplicate lines. Try to tame it.
+        self.strm_lvl = lpad_config.get('strm_lvl') or 'INFO'
+        fw_config.ROCKET_STREAM_LOGLEVEL = self.strm_lvl
 
         self.sleep_secs = 10
         self.idle_for_waiters = 60 * 60
         self.idle_for_queued = 15 * 60  # TODO(jerry): Rename this
 
         self.launchpad = LaunchPad(**lpad_config)
+        self.launchpad.m_logger.setLevel(self.strm_lvl)  # set non-stream level
 
         # Can optionally set a specific `category` of jobs to pull, a `query`
         # to restrict the type of Fireworks to run, and an `env` to pass
@@ -100,6 +110,8 @@ class Fireworker(object):
                 self.launchpad, self.fireworker, strm_lvl=self.strm_lvl,
                 max_loops=1, sleep_time=self.sleep_secs)
 
+            # logging_tree.printout()  # *** DEBUG ***
+
             # Idle to the max.
             idled = self.sleep_secs  # rapidfire() just slept once
             while not self.launchpad.run_exists(self.fireworker):  # none ready to run
@@ -120,6 +132,7 @@ class Fireworker(object):
 
 class Redacted(object):
     def __repr__(self):
+        """Print without quotes to look like a mask not a lame password."""
         return '*****'
 
 
@@ -135,14 +148,13 @@ def main(development=False):
         attributes/password - DB password [optional]
     secondarily from my_launchpad.yaml:
         host, port - for the DB connection [required]
-        logdir, strm_lvl, ... [optional]
+        logdir, strm_lvl, ... [optional, for "launchpad" & "rocket" logging]
         DB name, DB username, and DB password [fallback]
     with fallbacks:
         name - 'fireworker'
         DB name - 'default_fireworks_database'
         DB username, DB password - null
-        logdir - './logs/worker' (my_launchpad takes precedence, even if null)
-        strm_lvl - 'INFO'
+        logdir, strm_lvl - FireWorks defaults
 
     The DB username and password are needed if MongoDB is set up to require
     authentication, and it could use shared or user-specific accounts.
