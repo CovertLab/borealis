@@ -18,6 +18,7 @@ import time
 from fireworks import LaunchPad, FWorker, fw_config
 from fireworks.core import rocket_launcher
 import google.cloud.logging as gcl
+from google.cloud.logging.resource import Resource
 import ruamel.yaml as yaml
 from typing import Any, Dict
 
@@ -42,40 +43,44 @@ FW_CONSOLE_LOGGER.setLevel(logging.DEBUG)
 FW_CONSOLE_LOGGER.propagate = False
 
 
-def _setup_logging(instance_name):
-    # type: (str) -> None
-    """Set up GCP StackDriver logging for the given GCE instance name, if
-    running on GCE with Python's root logger.
+def _setup_logging(instance_name, host_name):
+    # type: (str, str) -> None
+    """Set up GCP StackDriver logging with Python's root logger, for the given
+    GCE instance name if running on GCE.
     """
-    # TODO(jerry): Set the StackDriver resource type (GCE VM) and name.
-
     # TODO(jerry): The root logger has a stderr stream handler which prints
     #  messages at all levels that propagate up from child loggers, and with no
     #  format string. Set that handler's level or filter the "rocket.launcher"
     #  and "launchpad" messages more tightly to minimize console duplicate
     #  messages and StackDriver messages?
-
-    # TODO(jerry): Enable StackDriver logging only when running on GCE (or limit
-    #  root AND child loggers to WARNING+ level) to reduce cost and quota usage.
-    # if instance_name: ...
-    client = gcl.Client()
+    log_level = logging.WARNING
     exclude = (FW_CONSOLE_LOGGER.name, 'docker', 'urllib3')
+
+    # if instance_name: ...  # TODO: else filter the StackDriver logging
+    monitored_resource = Resource(
+        type='gce_instance',
+        labels={  # Add a 'tag' label? It gets 'project_id' automatically.
+            'instance_id': host_name,  # it's really a gce_instance only if instance_name
+            'zone': gcp.zone()})
+    client = gcl.Client()
 
     # noinspection PyTypeChecker
     client.setup_logging(
-        log_level=logging.WARNING,
+        log_level=log_level,
         excluded_loggers=exclude,
-        name=FW_CONSOLE_LOGGER.name)
+        name=FW_CONSOLE_LOGGER.name,
+        resource=monitored_resource)
 
 
 def _cleanup_logging():
     # type: () -> None
-    """Clean up StackDriver logging: Flush and remove top level background-
-    transport logging handlers so the last messages get to the server and won't
-    raise RuntimeError('cannot schedule new futures after shutdown').
+    """Clean up StackDriver logging: Flush and remove root logger's background-
+    transport handlers so the last messages get to the server and won't raise
+    RuntimeError('cannot schedule new futures after shutdown').
 
     StackDriver should be out of the loop after this but there's no documented
-    API for this so it's not guaranteed.
+    API for this so hopefully it's right, idempotent, and safe if StackDriver
+    logging was not set up.
     """
     root = logging.getLogger()
 
@@ -196,7 +201,7 @@ def main(development=False):
     try:
         instance_name = gcp.gce_instance_name()
         host_name = instance_name or socket.gethostname()
-        _setup_logging(instance_name)
+        _setup_logging(instance_name, host_name)
 
         with open(LAUNCHPAD_FILE) as f:
             lpad_config = yaml.safe_load(f)  # type: dict
