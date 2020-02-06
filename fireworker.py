@@ -29,6 +29,7 @@ from cloud import gcp
 #: The standard launchpad config filename. Read it and override some fields.
 LAUNCHPAD_FILE = 'my_launchpad.yaml'
 
+
 #: Fireworker logger.
 FW_LOGGER = logging.getLogger('fireworker')
 FW_LOGGER.setLevel(logging.DEBUG)
@@ -39,25 +40,49 @@ FW_CONSOLE_LOGGER.setLevel(logging.DEBUG)
 FW_CONSOLE_LOGGER.propagate = False
 
 
-def setup_logging(instance_name):
+def _setup_logging(instance_name):
     # type: (str) -> None
     """Set up GCP StackDriver logging for the given GCE instance name, if
     running on GCE with Python's root logger.
     """
     # TODO(jerry): Set the StackDriver resource type (GCE VM) and name.
 
-    # TODO(jerry): The root logger has a stderr stream handler which will print
+    # TODO(jerry): The root logger has a stderr stream handler which prints
     #  messages at all levels that propagate up from child loggers, and with no
     #  format string. Set that handler's level or filter the "rocket.launcher"
-    #  and "launchpad" messages more tightly to minimize console duplicates
-    #  and StackDriver messages?
+    #  and "launchpad" messages more tightly to minimize console duplicate
+    #  messages and StackDriver messages?
 
     # TODO(jerry): Enable StackDriver logging only when running on GCE (or limit
     #  root AND child loggers to WARNING+ level) to reduce cost and quota usage.
     # if instance_name: ...
     client = gcl.Client()
     exclude = (FW_CONSOLE_LOGGER.name, 'docker', 'urllib3')
-    client.setup_logging(log_level=logging.WARNING, excluded_loggers=exclude)
+
+    # noinspection PyTypeChecker
+    client.setup_logging(
+        log_level=logging.WARNING,
+        excluded_loggers=exclude,
+        name=FW_CONSOLE_LOGGER.name)
+
+
+def _cleanup_logging():
+    # type: () -> None
+    """Clean up StackDriver logging: Flush and remove top level background-
+    transport logging handlers so the last messages get to the server and won't
+    raise RuntimeError('cannot schedule new futures after shutdown').
+
+    StackDriver should be out of the loop after this but there's no documented
+    API for this so it's not guaranteed.
+    """
+    root = logging.getLogger()
+
+    for handler in root.handlers.copy():
+        if hasattr(handler, 'transport'):
+            transport = handler.transport
+            if hasattr(transport, 'flush'):
+                transport.flush()
+                root.removeHandler(handler)
 
 
 class Fireworker(object):
@@ -164,12 +189,12 @@ def main(development=False):
     You can set a custom metadata field to make this worker stop idling:
         gcloud compute instances add-metadata INSTANCE-NAME --metadata quit=when-idle
     """
-    exit_code = 1
+    exit_code = ERROR_EXIT_CODE
 
     try:
         instance_name = gcp.gce_instance_name()
         host_name = instance_name or socket.gethostname()
-        setup_logging(instance_name)
+        _setup_logging(instance_name)
 
         with open(LAUNCHPAD_FILE) as f:
             lpad_config = yaml.safe_load(f)  # type: dict
@@ -193,13 +218,15 @@ def main(development=False):
         fireworker = Fireworker(lpad_config, host_name)
         fireworker.launch_rockets()
 
+        FW_LOGGER.warning("Fireworker -- normal exit")
         exit_code = 0
     except KeyboardInterrupt:
-        FW_LOGGER.warning('KeyboardInterrupt -- exiting')
-        sys.exit(2)
+        FW_LOGGER.warning('Fireworker -- KeyboardInterrupt exit')
+        exit_code = KEYBOARD_INTERRUPT_EXIT_CODE
     except Exception:
-        FW_LOGGER.exception('Fireworker error')
+        FW_LOGGER.exception('Fireworker -- error exit')
 
+    _cleanup_logging()
     shut_down(development, exit_code)
 
 
@@ -208,17 +235,16 @@ def shut_down(development, exit_code):
     """Shut down this program or this entire GCE VM (if running on GCE and not
     `development`).
     """
-    if development:
+    if development or exit_code == KEYBOARD_INTERRUPT_EXIT_CODE:
         sys.exit(exit_code)
     else:
         if exit_code:  # an unexpected failure, e.g. missing a needed pip
-            FW_LOGGER.warning(
+            FW_CONSOLE_LOGGER.warning(
                 'Delaying before deleting this GCE VM to allow some time to'
                 ' connect to it and stop this service so you can fix the problem'
                 ' and make a new Disk Image.')
             time.sleep(15 * 60)
 
-        FW_LOGGER.warning("Fireworker shutting down.")
         gcp.delete_this_vm(exit_code)
 
 
