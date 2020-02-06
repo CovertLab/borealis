@@ -14,17 +14,17 @@ import logging
 import socket
 import sys
 import time
+from typing import Any, Dict
 
 from fireworks import LaunchPad, FWorker, fw_config
 from fireworks.core import rocket_launcher
 import google.cloud.logging as gcl
 from google.cloud.logging.resource import Resource
 import ruamel.yaml as yaml
-from typing import Any, Dict
-
-from cloud import gcp
 
 # import logging_tree
+
+from cloud import gcp
 
 
 #: The standard launchpad config filename. Read it and override some fields.
@@ -43,40 +43,71 @@ FW_CONSOLE_LOGGER.setLevel(logging.DEBUG)
 FW_CONSOLE_LOGGER.propagate = False
 
 
-def _setup_logging(instance_name, host_name):
-    # type: (str, str) -> None
-    """Set up GCP StackDriver logging with Python's root logger, for the given
-    GCE instance name if running on GCE.
-    """
-    # TODO(jerry): The root logger has a stderr stream handler which prints
-    #  messages at all levels that propagate up from child loggers, and with no
-    #  format string. Set that handler's level or filter the "rocket.launcher"
-    #  and "launchpad" messages more tightly to minimize console duplicate
-    #  messages and StackDriver messages?
-    log_level = logging.WARNING
-    exclude = (FW_CONSOLE_LOGGER.name, 'docker', 'urllib3')
+class LogFilter(logging.Filter):
+    """Filter by log name prefix : level."""
+    # Subclass logging.Filter just to satisfy addFilter()'s zealous type decl.
+    def __init__(self, levels, else_level):
+        # type: (Dict[str, int], int) -> None
+        super(LogFilter, self).__init__()
+        self.levels = levels
+        self.else_level = else_level
 
-    # if instance_name: ...  # TODO: else filter the StackDriver logging
+    def filter(self, record):
+        # type: (logging.LogRecord) -> bool
+        prefix = record.name.split('.', 1)[0]
+        filter_level = self.levels.get(prefix, self.else_level)
+        return record.levelno >= filter_level
+
+
+def _setup_logging(gce_instance_name, host_name):
+    # type: (str, str) -> None
+    """Set up GCP StackDriver cloud logging on Python's root logger for the GCE
+    instance name or any host name. Set a narrow logging filter if running off
+    GCE (instance_name is empty).
+    """
+    exclude = (FW_CONSOLE_LOGGER.name, 'urllib3')
+
     monitored_resource = Resource(
         type='gce_instance',
         labels={  # Add a 'tag' label? It gets 'project_id' automatically.
-            'instance_id': host_name,  # it's really a gce_instance only if instance_name
+            'instance_id': host_name,
             'zone': gcp.zone()})
     client = gcl.Client()
 
     # noinspection PyTypeChecker
     client.setup_logging(
-        log_level=log_level,
+        log_level=logging.WARNING,
         excluded_loggers=exclude,
         name=FW_LOGGER.name,
         resource=monitored_resource)
 
+    # For aggregate cloud logs: Filter out debug details and when running off
+    # GCE also filter out the dockerfiretask payload stdout lines, keeping just
+    # the WARNINGs and start/end messages. (Use WARNING rather than NOTICE level
+    # for start/end because Logs Viewer doesn't support NOTICE very well.) We
+    # can't `exclude` those loggers since that'd block their WARNINGs.
+    #
+    # Console logs: Filter out messages already printed by handlers of nested
+    # loggers "launchpad" and "rocket.launcher", allowing WARNINGs just in case.
+    root = logging.getLogger()
+    fworker_level = logging.DEBUG if gce_instance_name else logging.WARNING
+    cloud_filter = LogFilter(
+        {'fireworker': fworker_level, 'dockerfiretask': fworker_level},
+        logging.WARNING)
+    console_filter = LogFilter(
+        {'fireworker': logging.INFO, 'dockerfiretask': logging.DEBUG},
+        logging.WARNING)
+    for handler in root.handlers:
+        # This `is_cloud` test is a bit fragile.
+        is_cloud = hasattr(handler, 'transport') or hasattr(handler, 'resource')
+        handler.addFilter(cloud_filter if is_cloud else console_filter)
+
 
 def _cleanup_logging():
     # type: () -> None
-    """Clean up StackDriver logging: Flush and remove root logger's background-
-    transport handlers so the last messages get to the server and won't raise
-    RuntimeError('cannot schedule new futures after shutdown').
+    """Clean up StackDriver cloud logging: Flush and remove root logger's
+    background-transport handlers so the last messages get to the server and
+    won't raise RuntimeError('cannot schedule new futures after shutdown').
 
     StackDriver should be out of the loop after this but there's no documented
     API for this so hopefully it's right, idempotent, and safe if StackDriver
