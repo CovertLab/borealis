@@ -68,7 +68,7 @@ def _setup_logging(instance_name, host_name):
     client.setup_logging(
         log_level=log_level,
         excluded_loggers=exclude,
-        name=FW_CONSOLE_LOGGER.name,
+        name=FW_LOGGER.name,
         resource=monitored_resource)
 
 
