@@ -29,6 +29,8 @@ from cloud import gcp
 #: The standard launchpad config filename. Read it and override some fields.
 LAUNCHPAD_FILE = 'my_launchpad.yaml'
 
+ERROR_EXIT_CODE = 1
+KEYBOARD_INTERRUPT_EXIT_CODE = 2
 
 #: Fireworker logger.
 FW_LOGGER = logging.getLogger('fireworker')
