@@ -12,6 +12,12 @@ from typing import Optional
 from util import filepath as fp
 
 
+#: Console-only logger.
+CONSOLE_LOGGER = logging.getLogger('fireworker.gcp')
+CONSOLE_LOGGER.setLevel(logging.DEBUG)
+CONSOLE_LOGGER.propagate = False
+
+
 def gcloud_get_config(section_property):
     # type: (str) -> str
     """Get a "section/property" configuration value from the gcloud command line
@@ -96,13 +102,16 @@ def delete_this_vm(exit_code=0):
     name = gce_instance_name()
 
     if name:
-        logging.warning('Deleting GCE VM "%s"...', name)
+        CONSOLE_LOGGER.warning('Deleting GCE VM "%s"...', name)
         my_zone = zone()
-        # TODO(jerry): If gcloud returns an exit code, log its stderr text
-        #  from the CalledProcessError stderr attr.
-        fp.run_cmd(['gcloud', '--quiet', 'compute', 'instances', 'delete',
-                    name, '--zone', my_zone])
+        try:
+            fp.run_cmd(['gcloud', '--quiet', 'compute', 'instances', 'delete',
+                        name, '--zone', my_zone])
+        except subprocess.CalledProcessError as e:
+            CONSOLE_LOGGER.error("Couldn't delete GCE VM %s: %s", name, e.stderr)
+        except (subprocess.TimeoutExpired, OSError):
+            CONSOLE_LOGGER.exception("Couldn't delete GCE VM %s", name)
     else:
-        logging.warning('Exiting (not running on GCE).')
+        CONSOLE_LOGGER.warning('Exiting (not running on GCE).')
 
     sys.exit(exit_code)
