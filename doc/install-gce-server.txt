@@ -166,6 +166,8 @@ cp example_my_launchpad.yaml my_launchpad.yaml
 # * Set "Description" to "Fireworks worker node" or some such to document this Image.
 # * Click "Create".
 # * When it finishes, delete this GCE VM and its boot disk using gcloud or the console.
+# ------------------------------------------------------------------------
+
 
 # To update this disk image in the future:
 # * Start a VM from this disk image, using the console, gcloud, or the gce.py script.
@@ -175,8 +177,16 @@ cp example_my_launchpad.yaml my_launchpad.yaml
 # * Upgrade apts (sudo apt update && sudo apt upgrade), if you upgraded any or
 #   if it printed `*** System restart required ***`: reboot, ssh again, and stop
 #   the service again.
-# * Pull any Docker images that you want to preload for speed, then run
+# * Pull any Docker images that you want to preload for speed.
+# * Prune Docker images:
 #     > docker image prune
+# * Update fireworker pips:
+#     > sudo su -l fireworker
+#     > cd ~/borealis || exit
+#     > pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
+#     > pip install -r requirements.txt
+#     > pyenv rehash
+#     ^D
 # * Repeat the "Make a disk image" steps, above.
 # * Test the new disk image. If it doesn't work, you can mark it "deprecated" in
 #   the Image Family so new launches will use a previous Disk Image.
