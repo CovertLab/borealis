@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 ## Instructions to set up a GCE Disk Image for a Borealis Fireworker.
 ##
 ## NOTE:
