@@ -145,7 +145,7 @@ cp example_my_launchpad.yaml my_launchpad.yaml
 
 ## Configure fireworker.
 # Edit my_launchpad.yaml with connection info for your MongoDB instance and
-# optionally set a logdir like /home/fireworker/fw/logs for Fireworks logging.
+# optionally set a logdir like /home/fireworker/fw/logs for local Fireworks logging.
 
 # Logout from the fireworker account (^D).
 # ------------------------------------------------------------------------
