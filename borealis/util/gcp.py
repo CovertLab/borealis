@@ -9,8 +9,7 @@ import subprocess
 import sys
 from typing import Optional
 
-from util import filepath as fp
-
+from borealis.util import filepath as fp
 
 #: Console-only logger.
 CONSOLE_LOGGER = logging.getLogger('fireworker.gcp')

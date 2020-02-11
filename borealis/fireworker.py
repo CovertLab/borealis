@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """A Fireworks worker on Google Compute Engine to "rapidfire" launch rockets.
 
+    python -m borealis.fireworker
+
 NOTE: When running as a systemd service or otherwise outside an interactive
 console, set the `PYTHONUNBUFFERED=1` environment variable or run with
 `python -u fireworker.py` so the logging output comes out in real time rather
@@ -24,10 +26,10 @@ import ruamel.yaml as yaml
 
 # import logging_tree
 
-from cloud import gcp
+from borealis.util import gcp
 
-
-#: The standard launchpad config filename. Read it and override some fields.
+#: The standard launchpad config filename (in CWD) to read.
+#: GCE instance metadata will override some field values.
 LAUNCHPAD_FILE = 'my_launchpad.yaml'
 
 ERROR_EXIT_CODE = 1

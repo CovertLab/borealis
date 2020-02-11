@@ -10,7 +10,7 @@ from typing import Iterator, List, Optional, Union, Set
 from google.cloud.storage import Blob, Bucket, Client
 from google.cloud.exceptions import GoogleCloudError
 
-import util.filepath as fp
+import borealis.util.filepath as fp
 
 
 OCTET_STREAM = 'application/octet-stream'

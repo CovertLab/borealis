@@ -4,14 +4,14 @@ like "{prefix}-0", "{prefix}-1", "{prefix}-2", ...
 
 # Example: Create worker VMs grace-wcm-0, grace-wcm-1, grace-wcm-2 with metadata
 # db=analysis so those workers will use the named database.
-    ./gce.py grace-wcm -c3 -m db=analysis
+    python -m borealis.gce.py grace-wcm -c3 -m db=analysis
 
 # Example: Delete those 3 worker VMs.
-    ./gce.py --delete grace-wcm -c3 -d
+    python -m borealis.gce.py --delete grace-wcm -c3 -d
 
 # Example: Set their metadata field `quit` to `when-idle`, asking Fireworkers to
 # shut down when idle.
-    ./gce.py grace-wcm -c3 --set -m quit=when-idle
+    python -m borealis.gce.py grace-wcm -c3 --set -m quit=when-idle
 """
 
 from __future__ import absolute_import, division, print_function
@@ -29,8 +29,7 @@ else:
     import subprocess
 
 from typing import Any, Dict, List, Optional
-from cloud import gcp
-
+from borealis.util import gcp
 
 #: Access Scopes for the created GCE VMs.
 SCOPES = ','.join([

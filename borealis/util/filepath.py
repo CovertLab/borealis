@@ -1,4 +1,4 @@
-"""File name and path utilities."""
+"""File and path utilities."""
 
 from __future__ import absolute_import, division, print_function
 
