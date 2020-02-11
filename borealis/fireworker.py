@@ -27,6 +27,7 @@ import ruamel.yaml as yaml
 # import logging_tree
 
 from borealis.util import gcp
+from borealis.util.log_filter import LogPrefixFilter
 
 #: The standard launchpad config filename (in CWD) to read.
 #: GCE instance metadata will override some field values.
@@ -43,22 +44,6 @@ FW_LOGGER.setLevel(logging.DEBUG)
 FW_CONSOLE_LOGGER = logging.getLogger('fireworker.console')
 FW_CONSOLE_LOGGER.setLevel(logging.DEBUG)
 FW_CONSOLE_LOGGER.propagate = False
-
-
-class LogFilter(logging.Filter):
-    """Filter by log name prefix : level."""
-    # Subclass logging.Filter just to satisfy addFilter()'s zealous type decl.
-    def __init__(self, levels, else_level):
-        # type: (Dict[str, int], int) -> None
-        super(LogFilter, self).__init__()
-        self.levels = levels
-        self.else_level = else_level
-
-    def filter(self, record):
-        # type: (logging.LogRecord) -> bool
-        prefix = record.name.split('.', 1)[0]
-        filter_level = self.levels.get(prefix, self.else_level)
-        return record.levelno >= filter_level
 
 
 def _setup_logging(gce_instance_name, host_name):
@@ -93,10 +78,10 @@ def _setup_logging(gce_instance_name, host_name):
     # loggers "launchpad" and "rocket.launcher", allowing WARNINGs just in case.
     root = logging.getLogger()
     fworker_level = logging.DEBUG if gce_instance_name else logging.WARNING
-    cloud_filter = LogFilter(
+    cloud_filter = LogPrefixFilter(
         {'fireworker': fworker_level, 'dockerfiretask': fworker_level},
         logging.WARNING)
-    console_filter = LogFilter(
+    console_filter = LogPrefixFilter(
         {'fireworker': logging.INFO, 'dockerfiretask': logging.DEBUG},
         logging.WARNING)
     for handler in root.handlers:
@@ -126,6 +111,13 @@ def _cleanup_logging():
 
 
 class Fireworker(object):
+    """A Fireworks worker on Google Compute Engine to "rapidfire" launch rockets.
+
+    NOTE: When running as a systemd service or otherwise outside an interactive
+    console, set the `PYTHONUNBUFFERED=1` environment variable or run with
+    `python -u fireworker.py` so the logging output comes out in real time rather
+    than buffering up into long delayed chunks.
+    """
 
     def __init__(self, lpad_config, host_name):
         # type: (Dict[str, Any], str) -> None
@@ -267,13 +259,13 @@ def main(development=False):
         FW_LOGGER.exception('Fireworker -- error exit')
 
     _cleanup_logging()
-    shut_down(development, exit_code)
+    _shut_down(development, exit_code)
 
 
-def shut_down(development, exit_code):
+def _shut_down(development, exit_code):
     # type: (bool, int) -> None
     """Shut down this program or this entire GCE VM (if running on GCE and not
-    `development`).
+    `development` and `exit_code` isn't KEYBOARD_INTERRUPT_EXIT_CODE).
     """
     if development or exit_code == KEYBOARD_INTERRUPT_EXIT_CODE:
         sys.exit(exit_code)
@@ -289,6 +281,7 @@ def shut_down(development, exit_code):
 
 
 def cli():
+    """Command Line Interpreter to run a Fireworker."""
     parser = argparse.ArgumentParser(
         description='Run as a FireWorks worker node, launching rockets rapidfire.'
                     ' Designed for Google Compute Engine (GCE).'

@@ -23,6 +23,12 @@ setup(
         'ruamel.yaml>=0.16.7',
         'subprocess32>=3.5.4',
     ],
+    entry_points={
+        'console_scripts': [
+            'fireworker=borealis.fireworker:cli',
+            'gce=borealis.gce:cli',
+        ],
+    },
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
@@ -33,8 +39,5 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python',
     ],
-    # package_data=?,
-    # python_requires=?,
-    # entry_points=?,
-    # scripts=?,
+    keywords='fireworks workflow',
 )

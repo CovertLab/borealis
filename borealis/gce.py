@@ -4,14 +4,14 @@ like "{prefix}-0", "{prefix}-1", "{prefix}-2", ...
 
 # Example: Create worker VMs grace-wcm-0, grace-wcm-1, grace-wcm-2 with metadata
 # db=analysis so those workers will use the named database.
-    python -m borealis.gce.py grace-wcm -c3 -m db=analysis
+    python -m borealis.gce grace-wcm -c3 -m db=analysis
 
 # Example: Delete those 3 worker VMs.
-    python -m borealis.gce.py --delete grace-wcm -c3 -d
+    python -m borealis.gce --delete grace-wcm -c3 -d
 
 # Example: Set their metadata field `quit` to `when-idle`, asking Fireworkers to
 # shut down when idle.
-    python -m borealis.gce.py grace-wcm -c3 --set -m quit=when-idle
+    python -m borealis.gce grace-wcm -c3 --set -m quit=when-idle
 """
 
 from __future__ import absolute_import, division, print_function
@@ -39,7 +39,7 @@ SCOPES = ','.join([
     'monitoring-write',     # to emit data for load monitoring
     'service-control',      # ?
     'service-management',   # ?
-    'trace',                # for debugging [TODO: Try it]
+    'trace',                # for debugging
 ])
 
 
@@ -69,8 +69,6 @@ def _options_list(options):
 class ComputeEngine(object):
     """Runs `gcloud compute` to create, delete, or change a group of GCE VM
     instances named "{prefix}-{index}".
-
-    TODO: Use GCE Instance Groups?
     """
 
     MAX_VMS = 100  # don't create more than this many GCE VMs at a time
@@ -226,7 +224,7 @@ class ComputeEngine(object):
                 subprocess.call(cmd_tokens)
 
 
-def main():
+def cli():
     parser = argparse.ArgumentParser(
         description='''Create, delete, or set metadata on a group of Google
             Compute Engine VMs, e.g. workflow workers that start up from a disk
@@ -297,4 +295,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    cli()
