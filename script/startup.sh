@@ -9,4 +9,4 @@ git pull origin
 pip install --upgrade borealis-fireworker
 pyenv rehash
 
-python -m borealis.fireworker
+fireworker

@@ -4,14 +4,14 @@ like "{prefix}-0", "{prefix}-1", "{prefix}-2", ...
 
 # Example: Create worker VMs grace-wcm-0, grace-wcm-1, grace-wcm-2 with metadata
 # db=analysis so those workers will use the named database.
-    python -m borealis.gce grace-wcm -c3 -m db=analysis
+    gce grace-wcm -c3 -m db=analysis
 
 # Example: Delete those 3 worker VMs.
-    python -m borealis.gce --delete grace-wcm -c3 -d
+    gce --delete grace-wcm -c3 -d
 
 # Example: Set their metadata field `quit` to `when-idle`, asking Fireworkers to
 # shut down when idle.
-    python -m borealis.gce grace-wcm -c3 --set -m quit=when-idle
+    gce grace-wcm -c3 --set -m quit=when-idle
 """
 
 from __future__ import absolute_import, division, print_function

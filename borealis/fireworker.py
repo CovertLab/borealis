@@ -3,6 +3,11 @@
 
     python -m borealis.fireworker
 
+The borealis-fireworker installs a console_scripts for fireworker and gce, so
+you can simply run
+
+    fireworker
+
 NOTE: When running as a systemd service or otherwise outside an interactive
 console, set the `PYTHONUNBUFFERED=1` environment variable or run with
 `python -u fireworker.py` so the logging output comes out in real time rather
