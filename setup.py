@@ -14,13 +14,14 @@ setup(
     description='Run FireWorks workflows in Google Cloud',
     long_description=long_description,
     long_description_content_type='text/markdown',
+    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
     install_requires=[
         'google-cloud-logging>=1.14.0',
         'google-cloud-storage>=1.25.0',
         'docker>=4.1.0',
         'FireWorks>=1.9.5',
         'requests>=2.22.0',
-        'ruamel.yaml>=0.16.7',
+        'ruamel.yaml>=0.16.9',
         'subprocess32>=3.5.4',
     ],
     entry_points={
