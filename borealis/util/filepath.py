@@ -5,7 +5,11 @@ from __future__ import absolute_import, division, print_function
 import errno
 import logging
 import os
-import subprocess
+import sys
+if os.name == 'posix' and sys.version_info[0] < 3:
+	import subprocess32 as subprocess
+else:
+	import subprocess
 from typing import Optional, Sequence, Tuple
 
 
