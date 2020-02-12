@@ -7,9 +7,9 @@ import logging
 import os
 import sys
 if os.name == 'posix' and sys.version_info[0] < 3:
-	import subprocess32 as subprocess
+    import subprocess32 as subprocess
 else:
-	import subprocess
+    import subprocess
 from typing import Optional, Sequence, Tuple
 
 

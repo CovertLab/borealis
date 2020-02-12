@@ -37,6 +37,7 @@ from borealis.util.log_filter import LogPrefixFilter
 #: The standard launchpad config filename (in CWD) to read.
 #: GCE instance metadata will override some field values.
 LAUNCHPAD_FILE = 'my_launchpad.yaml'
+DEFAULT_FIREWORKS_DATABASE = 'default_fireworks_database'
 
 ERROR_EXIT_CODE = 1
 KEYBOARD_INTERRUPT_EXIT_CODE = 2
@@ -214,7 +215,7 @@ def main(development=False):
         DB name, DB username, and DB password [fallback]
     with fallbacks:
         name - 'fireworker'
-        DB name - 'default_fireworks_database'
+        DB name - DEFAULT_FIREWORKS_DATABASE
         DB username, DB password - null
         logdir, strm_lvl - FireWorks defaults
 
@@ -237,7 +238,7 @@ def main(development=False):
             lpad_config = yaml.safe_load(f)  # type: dict
 
         db_name = (gcp.instance_metadata('attributes/db')
-                   or lpad_config.get('name', 'default_fireworks_database'))
+                   or lpad_config.get('name', DEFAULT_FIREWORKS_DATABASE))
         lpad_config['name'] = db_name
 
         username = (gcp.instance_metadata('attributes/username')

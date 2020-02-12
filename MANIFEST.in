@@ -1,3 +1,1 @@
-include example_my_launchpad.yaml LICENSE *.md
-recursive-include docs *.txt *.md
-recursive-include script *.service *.sh
+include *.md

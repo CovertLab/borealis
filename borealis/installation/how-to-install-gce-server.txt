@@ -141,7 +141,11 @@ pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clo
 pip install -r requirements.txt
 pyenv rehash
 
-cp example_my_launchpad.yaml my_launchpad.yaml
+## Copy the launchpad yaml file from the borealis installation directory within
+## site-packages.
+pyenv which python
+## Look in that directory, up two levels, down lib/python*/site-packages/borealis/
+cp .../borealis/installation/example_my_launchpad.yaml my_launchpad.yaml
 
 ## Configure fireworker.
 # Edit my_launchpad.yaml with connection info for your MongoDB instance and
@@ -151,7 +155,7 @@ cp example_my_launchpad.yaml my_launchpad.yaml
 # ------------------------------------------------------------------------
 
 
-# Follow the instructions in script/borealis-fireworker.service to set up that
+# Follow the instructions in installation/borealis-fireworker.service to set up that
 # systemd service.
 
 

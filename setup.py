@@ -24,6 +24,9 @@ setup(
         'ruamel.yaml>=0.16.9',
         'subprocess32>=3.5.4',
     ],
+    package_data={
+        'borealis': ['installation/*'],
+    },
     entry_points={
         'console_scripts': [
             'fireworker=borealis.fireworker:cli',
