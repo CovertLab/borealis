@@ -128,8 +128,8 @@ curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer 
   echo 'eval "$(pyenv virtualenv-init -)"'; } >> ~/.bash_aliases
 source ~/.bash_aliases
 
-git clone https://github.com/CovertLab/borealis.git
-cd ~/borealis || exit
+mkdir ~/borealis
+cd ~/borealis
 
 pyenv install 3.8.0
 pyenv global 3.8.0
@@ -137,26 +137,30 @@ pyenv local 3.8.0
 pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
 pyenv virtualenv fireworker
 pyenv local fireworker
-pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
-pip install -r requirements.txt
+pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel borealis-fireworks
 pyenv rehash
 
-## Copy the launchpad yaml file from the borealis installation directory within
-## site-packages.
+## Find the borealis installation directory within site-packages.
 pyenv which python
-## Look in that directory, up two levels, down lib/python*/site-packages/borealis/
-cp .../borealis/installation/example_my_launchpad.yaml my_launchpad.yaml
+## Look in that directory, up two levels, down to lib/python*/site-packages/borealis/
+# SITE_PKG=..../site-packages/borealis/
 
-## Configure fireworker.
+## Copy the launchpad yaml file from the borealis installation directory.
+cp ${SITE_PKG}/installation/example_my_launchpad.yaml my_launchpad.yaml
+
+## Configure fireworker's my_launchpad.yaml
 # Edit my_launchpad.yaml with connection info for your MongoDB instance and
 # optionally set a logdir like /home/fireworker/fw/logs for local Fireworks logging.
 
+## Copy the startup.sh script.
+cp ${SITE_PKG}/installation/startup.sh .
+
 # Logout from the fireworker account (^D).
-# ------------------------------------------------------------------------
 
+### ------------------------------------------------------------------------
 
-# Follow the instructions in installation/borealis-fireworker.service to set up that
-# systemd service.
+# Follow the instructions in ${SITE_PKG}/installation/borealis-fireworker.service
+# to set up that systemd service.
 
 
 # Make a disk image in the disk image family "fireworker":
@@ -170,8 +174,8 @@ cp .../borealis/installation/example_my_launchpad.yaml my_launchpad.yaml
 # * Set "Description" to "Fireworks worker node" or some such to document this Image.
 # * Click "Create".
 # * When it finishes, delete this GCE VM and its boot disk using gcloud or the console.
-# ------------------------------------------------------------------------
 
+### ------------------------------------------------------------------------
 
 # To update this disk image in the future:
 # * Start a VM from this disk image, using the console, gcloud, or the gce.py script.
@@ -186,9 +190,8 @@ cp .../borealis/installation/example_my_launchpad.yaml my_launchpad.yaml
 #     > docker image prune
 # * Update fireworker pips:
 #     > sudo su -l fireworker
-#     > cd ~/borealis || exit
-#     > pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
-#     > pip install -r requirements.txt
+#     > cd ~/borealis
+#     > pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel borealis-fireworks
 #     > pyenv rehash
 #     ^D
 # * Repeat the "Make a disk image" steps, above.
