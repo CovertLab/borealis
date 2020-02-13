@@ -17,9 +17,8 @@ like "{prefix}-0", "{prefix}-1", "{prefix}-2", ...
 from __future__ import absolute_import, division, print_function
 
 import argparse
-import logging
 import os
-from pprint import pformat
+from pprint import pprint
 import re
 import sys
 
@@ -100,7 +99,7 @@ class ComputeEngine(object):
         vms = ('VMs' if count == 0
                else 'VM: {}'.format(instance_names[0]) if count == 1
                else 'VMs: {} .. {}'.format(instance_names[0], instance_names[-1]))
-        logging.info('%s%s %s Google Compute Engine %s', dry, action, count, vms)
+        print('{}{} {} Google Compute Engine {}'.format(dry, action, count, vms))
 
     def create(self, base=0, count=1, command_options=None, **metadata):
         # type: (int, int, Optional[Dict[str, Any]], **Any) -> None
@@ -149,7 +148,7 @@ class ComputeEngine(object):
             ] + instance_names + options_list
 
         if self.dry_run or self.verbose:
-            logging.info('%s', pformat(cmd_tokens))
+            pprint(cmd_tokens)
 
         if not self.dry_run:
             subprocess.call(cmd_tokens)
@@ -182,7 +181,7 @@ class ComputeEngine(object):
             ] + instance_names + options_list
 
         if self.dry_run or self.verbose:
-            logging.info('%s', pformat(cmd_tokens))
+            pprint(cmd_tokens)
 
         if not self.dry_run:
             subprocess.call(cmd_tokens)
@@ -218,7 +217,7 @@ class ComputeEngine(object):
                 ] + options_list
 
             if self.dry_run or self.verbose:
-                logging.info('%s', pformat(cmd_tokens))
+                pprint(cmd_tokens)
 
             if not self.dry_run:
                 subprocess.call(cmd_tokens)

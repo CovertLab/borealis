@@ -6,7 +6,7 @@ Runs [FireWorks workflows](https://materialsproject.github.io/fireworks/) on
 See the repo [Borealis](https://github.com/CovertLab/borealis).
 
 * _Borealis_ is the git repo name.
-* _borealis-fireworker_ is the PyPI package name.
+* _borealis-fireworks_ is the PyPI package name.
 * _borealis-fireworker.service_ is the name of the systemd service.
 * _fireworker_ is the recommended process username and home directory name.
 
