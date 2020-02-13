@@ -63,3 +63,14 @@ build a Docker image to run,
 ## Run
 
 TODO
+
+
+# Change Log
+
+## v0.1.1 - 2020-02-13
+* Correct the pip name in `startup.sh`.
+* Use `print()` instead of `logging` in gce.py so the messages aren't filtered by the log level.
+* Refine the installation instructions.
+
+## v0.1.0 - 2020-02-10
+* Initial dev build.
