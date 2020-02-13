@@ -1,8 +1,5 @@
 """A Firetask that runs a shell command in a Docker container, pulling input
 files from Google Cloud Storage (GCS) and pushing output files to GCS.
-
-TODO: An option to keep all the local files in an 'out/' directory instead of or
-in addition to writing them to a GCS bucket.
 """
 
 from __future__ import absolute_import, division, print_function
@@ -20,8 +17,8 @@ from docker.types import Mount
 from docker.utils import parse_repository_tag
 from fireworks import explicit_serialize, FiretaskBase, FWAction
 
-import cloud.storage as st
-import util.filepath as fp
+import borealis.util.filepath as fp
+import borealis.util.storage as st
 
 
 class DockerTaskError(Exception):
@@ -195,7 +192,6 @@ class DockerTask(FiretaskBase):
                             f.write('{}\n\n{}\n'.format(hr, epilogue))
                 except IOError as e:
                     self._log().exception('Error capturing to %s', out.local)
-                    # TODO(jerry): Count this as a task failure?
 
             if success or out.captures == '>>':
                 to_push.append(out)
@@ -205,7 +201,6 @@ class DockerTask(FiretaskBase):
     def push_to_gcs(self, to_push):
         # type: (List[PathMapping]) -> bool
         """Push outputs to GCS. Return True if successful."""
-        # TODO(jerry): Parallelize.
         ok = True
         prefix = self['storage_prefix']
 
@@ -221,7 +216,6 @@ class DockerTask(FiretaskBase):
     def pull_from_gcs(self, to_pull):
         # type: (List[PathMapping]) -> bool
         """Pull inputs from GCS. Return True if successful."""
-        # TODO(jerry): Parallelize.
         ok = True
         prefix = self['storage_prefix']
 

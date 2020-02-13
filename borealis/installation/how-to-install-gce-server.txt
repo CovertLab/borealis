@@ -1,12 +1,12 @@
 ## Instructions to set up a GCE Disk Image for a Borealis Fireworker.
 ##
 ## NOTE:
-## * The single-# comment lines are instructions to carry out manually.
-## * The non-comment lines can be pasted into an ssh shell one section at a
-##   time, watching for errors. Some commands will prompt for input.
-##
-##
-# * Create a Google Cloud Platform project if you don't have one already.
+## * Non-comment lines can be pasted into an ssh shell one section at a time,
+##   watching for errors, and in some cases responding to input prompts.
+## * # lines are instructions to carry out manually.
+## * ## lines are comments.
+
+# * Create a Google Cloud Platform (GCP) project if you don't have one already.
 #   If needed, enable billing, Compute Engine, Cloud Storage, StackDriver
 #   Logging, IAM, Container Registry, and Cloud Build.
 # * In the Google Cloud Platform Console > IAM > Service Accounts
@@ -21,37 +21,45 @@
 #       Logs Writer
 #       Storage Object Admin
 #       Project Viewer
-# * Create a Compute Engine VM instance (to create a Disk Image) using the
-#   console https://console.cloud.google.com/compute/instancesAdd or a
+# * Decide which GCP Region and Zone you want to use. The cost varies by region.
+# * Set up a MongoDB instance in that Region and Zone using either a Google
+#   managed MongoDB service, a Compute Engine VM of your own with ordinary
+#   MongoDB installation, or a Marketplace installation
+#   https://console.cloud.google.com/marketplace/browse?q=mongodb
+
+## Next, create a Compute Engine Disk Image as a basis for creating Compute
+## Engine VM instances. This Image will begin an Image Family to swap in upraded
+## Images when needed.
+
+# * Create a Compute Engine VM instance via the Google Cloud Platform web
+#   console https://console.cloud.google.com/compute/instancesAdd or via a
 #   `gcloud compute instances create` command line.
 #     Name: fireworker
 #     Region & Zone: <where you want to run everything>
 #     Machine family/series: N1 n1-standard-1 [or other. You'll be able to use the
 #       resulting Disk Image for any machine type you want.]
-#     Boot disk: New 200 GB Standard persistent disk, Ubuntu 19.10 (Not COS)
-#       [You can resize it later, but changing the OS image requires creating a
-#       new VM from scratch. Container-Optimized OS doesn't have a package
-#       manager and is not intended to install software.]
+#     Boot disk: New 200 GB Standard persistent disk, Ubuntu 19.10 (*Not* COS)
+#       [Your needs might differ. You can resize it later, but changing the OS
+#       image requires creating a new VM from scratch. Container-Optimized OS
+#       doesn't have a package manager and is not intended to install software.]
 #     Identity and API access: "Compute Engine default service account" or
 #       the "fireworker" service account.
-#     Access scopes: set access for each API [figure out these details]
-#       Cloud Debugger Enabled?
+#     Access scopes: set access for each API
+#       Cloud Debugger Enabled
 #       Compute Engine Read Write
 #       Service Control Enabled
-#       Service Management Read Write?
+#       Service Management Read Write
 #       Stackdriver Logging Write Only
 #       Stackdriver Monitoring Write Only
 #       Stackdriver Trace Write Only
 #       Storage Read Write
 #   Management > Description: Fireworks worker node
-#
-# * Then access the GCE VM via
-#     > gcloud compute ssh fireworker
-#   to run the following steps.
+#   [Create]
 
-sudo apt update
-sudo apt upgrade
-sudo apt autoremove
+## Connect to the GCE VM to run the following steps
+gcloud compute ssh fireworker
+
+sudo apt update && sudo apt upgrade && sudo apt autoremove
 
 sudo apt install -y docker.io
 sudo apt install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
@@ -61,7 +69,7 @@ sudo apt install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
 
 ## Reboot to ensure the apts take effect.
 sudo reboot
-## Then return.
+## Give it a few seconds to reboot then reconnect.
 gcloud compute ssh fireworker
 
 
@@ -89,13 +97,14 @@ sudo ln -s /usr/local/bin/sdk/google-cloud-sdk/bin/gcloud /usr/local/bin/
 sudo ln -s /usr/local/bin/sdk/google-cloud-sdk/bin/docker-credential-gcloud /usr/local/bin/
 sudo ln -s /usr/local/bin/sdk/google-cloud-sdk/bin/docker-credential-gcr /usr/local/bin/
 
-## Enable docker.
+## Enable the docker service.
 sudo systemctl enable docker
 sudo systemctl start docker
 
 ## Join the `docker` group so you can run docker commands without `sudo`.
 sudo usermod -aG docker "$USER"
-# To make it take effect, disconnect (^D) and `gcloud compute ssh fireworker` back.
+
+# To make that take effect, disconnect (^D) and `gcloud compute ssh fireworker` back.
 
 ## Test docker
 docker --version
@@ -104,12 +113,11 @@ docker info
 ## Set up to authenticate to GCR Docker repositories.
 ## You can pass specific gcr repo names here, e.g. gcr.io,eu.gcr.io,us.gcr.io,asia.gcr.io
 gcloud auth configure-docker
-## There are alternative ways to authenticate, e.g.:
+## There are alternate ways to authenticate, e.g.:
 ##   echo y | docker-credential-gcr configure-docker
 
 ## Pull any docker images you want to preload for faster DockerTask runs.
 docker pull python:2.7.16
-
 
 ## ------------------------------------------------------------------------
 ## Create and switch to the fireworker user that'll run the borealis service.
@@ -128,65 +136,98 @@ curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer 
   echo 'eval "$(pyenv virtualenv-init -)"'; } >> ~/.bash_aliases
 source ~/.bash_aliases
 
-git clone https://github.com/CovertLab/borealis.git
-cd ~/borealis || exit
+mkdir ~/borealis && cd ~/borealis
 
 pyenv install 3.8.0
+
 pyenv global 3.8.0
 pyenv local 3.8.0
 pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
+
 pyenv virtualenv fireworker
 pyenv local fireworker
-pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
-pip install -r requirements.txt
+pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel borealis-fireworks
 pyenv rehash
 
-cp example_my_launchpad.yaml my_launchpad.yaml
+## Find the borealis installation directory within site-packages.
+pyenv which python
+## Look in that directory, up two levels, down to lib/python*/site-packages/borealis/
+# SITE_PKG=..../site-packages/borealis/
 
-## Configure fireworker.
-# Edit my_launchpad.yaml with connection info for your MongoDB instance and
-# optionally set a logdir like /home/fireworker/fw/logs to enable Fireworks logging.
+## Copy the launchpad yaml file from the borealis installation directory.
+cp ${SITE_PKG}/installation/example_my_launchpad.yaml my_launchpad.yaml
+
+## Configure fireworker's my_launchpad.yaml
+# Edit my_launchpad.yaml with the `host:` and `port:` needed to connect to your
+# MongoDB instance. (The database `name:`, `username:`, and `password:` fields
+# will normally be overridden by metadata attributes sent by the client.)
+# Optionally set a logdir like /home/fireworker/fw/logs for local Fireworks log files.
+nano my_launchpad.yaml
+
+## Copy the startup.sh script and the service file.
+cp ${SITE_PKG}/installation/startup.sh .
+cp ${SITE_PKG}/installation/borealis-fireworker.service .
 
 # Logout from the fireworker account (^D).
-# ------------------------------------------------------------------------
 
+### ------------------------------------------------------------------------
 
-# Follow the instructions in script/borealis-fireworker.service to set up that
-# systemd service.
+# Follow the instructions in /home/fireworker/borealis/borealis-fireworker.service
+# to set up that systemd service.
 
+### ------------------------------------------------------------------------
 
-# Make a disk image in the disk image family "fireworker":
-# > sudo shutdown -h now
+## Make a disk image in the disk image family "fireworker":
+sudo systemctl stop borealis-fireworker
+sudo shutdown -h now
+
 # * Watch the Compute Engine > VM instances page to see when this VM has fully stopped.
-# * Find this disk (e.g. "fireworker") in the Compute Engine > Disks console page.
+# * Click on the disk "fireworker" in the Compute Engine > Disks console page.
+#   https://console.cloud.google.com/compute/disks?project=allen-discovery-center-mcovert
 # * Click "CREATE IMAGE".
 # * Name the image like "fireworker-v0", picking the next number in the fireworker series.
 # * Set "Family" to "fireworker"  <== MUST DO THIS. The launch-workers script will
-#   instantiate workers by Disk Image Family so future images can supersede it.
+#   instantiate workers by the Disk Image Family name.
 # * Set "Description" to "Fireworks worker node" or some such to document this Image.
 # * Click "Create".
-# * When it finishes, delete this GCE VM and its boot disk using gcloud or the console.
-# ------------------------------------------------------------------------
+# * When it finishes, delete this GCE VM and its boot disk using gcloud or the
+#   console -- maybe after testing the Disk Image.
 
+### ------------------------------------------------------------------------
 
-# To update this disk image in the future:
-# * Start a VM from this disk image, using the console, gcloud, or the gce.py script.
-# * `gcloud compute ssh <NAME>` to connect to it.
-# * Stop the service:
-#     > sudo systemctl stop borealis-fireworker
-# * Upgrade apts (sudo apt update && sudo apt upgrade), if you upgraded any or
-#   if it printed `*** System restart required ***`: reboot, ssh again, and stop
-#   the service again.
+## To update this disk image in the future, first start a VM from this Disk
+## Image using the console, gcloud, or the gce.py script:
+gce fireworker -m db=default_fireworks_database
+
+## Connect to it:
+gcloud compute ssh fireworker
+
+## Stop the service:
+sudo systemctl stop borealis-fireworker
+
+## Upgrade apts:
+sudo apt update && sudo apt upgrade
+
+## If you upgraded any or if it printed `*** System restart required ***`:
+sudo reboot
+## ... and wait a few seconds, then reconnect:
+gcloud compute ssh fireworker
+sudo systemctl stop borealis-fireworker
+
 # * Pull any Docker images that you want to preload for speed.
-# * Prune Docker images:
-#     > docker image prune
-# * Update fireworker pips:
-#     > sudo su -l fireworker
-#     > cd ~/borealis || exit
-#     > pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
-#     > pip install -r requirements.txt
-#     > pyenv rehash
-#     ^D
+
+## Prune Docker images:
+docker image prune
+
+## Update the fireworker pips:
+sudo su -l fireworker
+cd ~/borealis
+pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel borealis-fireworks
+pyenv rehash
+
+## Disconnect:
+# ^D
+
 # * Repeat the "Make a disk image" steps, above.
 # * Test the new disk image. If it doesn't work, you can mark it "deprecated" in
 #   the Image Family so new launches will use a previous Disk Image.

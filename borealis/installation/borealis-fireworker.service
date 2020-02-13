@@ -18,7 +18,7 @@ After=networking.service
 
 [Service]
 Type=simple
-ExecStart=/bin/bash /home/fireworker/borealis/script/startup.sh
+ExecStart=/bin/bash /home/fireworker/borealis/startup.sh
 User=fireworker
 Group=fireworker
 Environment=PYTHONUNBUFFERED=1
