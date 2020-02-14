@@ -68,6 +68,9 @@ TODO
 
 # Change Log
 
+## v0.2.1 - 2020-02-13
+* Bug fix in the `gce_my_launchpad.yaml` fallback code.
+
 ## v0.2.0 - 2020-02-13
 * Read launchpad config info from `gce_my_launchpad.yaml` if possible, falling
   back to `my_launchpad.yaml` for compatibility. This lets people use one

@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setup(
     name='borealis-fireworks',
-    version='0.2.0',
+    version='0.2.1',
     packages=['borealis', 'borealis.util'],
     url='https://github.com/CovertLab/borealis',
     license='MIT',

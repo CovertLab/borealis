@@ -206,19 +206,17 @@ def _read_launchpad_config():
     Raises FileNotFoundError if neither file was found.
     """
     try:
-        with open(LAUNCHPAD_YAML) as f:
-            lpad_config = yaml.safe_load(f)  # type: dict
+        with open(LAUNCHPAD_YAML) as f1:
+            return yaml.safe_load(f1)  # type: dict
     except FileNotFoundError as e1:
 
         try:
-            with open(LAUNCHPAD_YAML2) as f:
-                lpad_config = yaml.safe_load(f)  # type: dict
+            with open(LAUNCHPAD_YAML2) as f2:
+                return yaml.safe_load(f2)  # type: dict
         except FileNotFoundError as _:
             pass
 
         raise  # continue propagating e1 (naming the primary file)
-
-    return lpad_config
 
 
 def main(development=False):
