@@ -312,7 +312,8 @@ def cli():
     parser = argparse.ArgumentParser(
         description=
             'Run as a FireWorks worker node, launching rockets rapidfire.'
-            ' Designed for Google Compute Engine (GCE).'
+            ' Designed for Google Compute Engine (GCE) and Google Cloud Storage'
+            ' (GCS).'
             ' Gets configuration settings from GCE metadata attributes and'
             ' {}, with fallbacks.'
             ' NOTE: This fireworks.py file is at "{}"'.format(

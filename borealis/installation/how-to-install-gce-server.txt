@@ -153,6 +153,8 @@ pyenv rehash
 pip show borealis-fireworks | grep Location
 ## Append `/borealis/installation` to that `..../site-packages` directory.
 # SRC=..../site-packages/borealis/installation
+## Or get the installation directory from:
+fireworker --help
 
 ## Copy the launchpad yaml file from the borealis installation directory.
 cp ${SRC}/example_my_launchpad.yaml gce_my_launchpad.yaml

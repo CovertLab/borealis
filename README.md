@@ -68,6 +68,14 @@ TODO
 
 # Change Log
 
+## v0.2.0 - 2020-02-13
+* Read launchpad config info from `gce_my_launchpad.yaml` if possible, falling
+  back to `my_launchpad.yaml` for compatibility. This lets people use one
+  launchpad config file for their GCE workflows and another one for their other
+  workflows.
+* Improve the server installation steps and augment the `fireworker --help` text
+  to display its directory.
+
 ## v0.1.1 - 2020-02-13
 * Correct the pip name in `startup.sh`.
 * Use `print()` instead of `logging` in gce.py so the messages aren't filtered by the log level.
