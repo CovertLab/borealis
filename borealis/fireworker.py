@@ -36,7 +36,8 @@ from borealis.util.log_filter import LogPrefixFilter
 
 #: The standard launchpad config filename (in CWD) to read.
 #: GCE instance metadata will override some field values.
-LAUNCHPAD_FILE = 'my_launchpad.yaml'
+LAUNCHPAD_YAML = 'gce_my_launchpad.yaml'
+LAUNCHPAD_YAML2 = 'my_launchpad.yaml'
 DEFAULT_FIREWORKS_DATABASE = 'default_fireworks_database'
 
 ERROR_EXIT_CODE = 1
@@ -199,6 +200,27 @@ class Redacted(object):
         return '*****'
 
 
+def _read_launchpad_config():
+    # type: () -> dict
+    """Read the primary LAUNCHPAD_YAML or else the fallback LAUNCHPAD_YAML2.
+    Raises FileNotFoundError if neither file was found.
+    """
+    try:
+        with open(LAUNCHPAD_YAML) as f:
+            lpad_config = yaml.safe_load(f)  # type: dict
+    except FileNotFoundError as e1:
+
+        try:
+            with open(LAUNCHPAD_YAML2) as f:
+                lpad_config = yaml.safe_load(f)  # type: dict
+        except FileNotFoundError as _:
+            pass
+
+        raise  # continue propagating e1 (naming the primary file)
+
+    return lpad_config
+
+
 def main(development=False):
     # type: (bool) -> None
     """Run as a FireWorks worker node on Google Compute Engine (GCE), launching
@@ -209,7 +231,7 @@ def main(development=False):
         attributes/db - DB name (user-specific or workflow-specific) [required]
         attributes/username - DB username [optional]
         attributes/password - DB password [optional]
-    secondarily from my_launchpad.yaml:
+    secondarily from a launchpad yaml file:
         host, port - for the DB connection [required]
         logdir, strm_lvl, ... [optional, for "launchpad" & "rocket" logging]
         DB name, DB username, and DB password [fallback]
@@ -234,8 +256,7 @@ def main(development=False):
         host_name = instance_name or socket.gethostname()
         _setup_logging(instance_name, host_name)
 
-        with open(LAUNCHPAD_FILE) as f:
-            lpad_config = yaml.safe_load(f)  # type: dict
+        lpad_config = _read_launchpad_config()
 
         db_name = (gcp.instance_metadata('attributes/db')
                    or lpad_config.get('name', DEFAULT_FIREWORKS_DATABASE))
@@ -289,10 +310,13 @@ def _shut_down(development, exit_code):
 def cli():
     """Command Line Interpreter to run a Fireworker."""
     parser = argparse.ArgumentParser(
-        description='Run as a FireWorks worker node, launching rockets rapidfire.'
-                    ' Designed for Google Compute Engine (GCE).'
-                    ' Gets configuration settings from GCE and my_launchpad.yaml,'
-                    ' with fallbacks.')
+        description=
+            'Run as a FireWorks worker node, launching rockets rapidfire.'
+            ' Designed for Google Compute Engine (GCE).'
+            ' Gets configuration settings from GCE metadata attributes and'
+            ' {}, with fallbacks.'
+            ' NOTE: This fireworks.py file is at "{}"'.format(
+                LAUNCHPAD_YAML, __file__))
     parser.add_argument(
         '--development', action='store_true',
         help="Development mode: When done, just exit Python without deleting"

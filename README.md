@@ -13,12 +13,13 @@ See the repo [Borealis](https://github.com/CovertLab/borealis).
 
 ## Background
 
-You can launch as many FWorker nodes as you want as Google Compute Engine (GCE) VM
+You can launch as many Fireworker nodes as you want as Google Compute Engine (GCE) VM
 instances, and/or run local workers, as long as they can all connect to the LaunchPad
-server running MongoDB. Metadata parameters and the worker's `my_launchpad.yaml` file
-supply the MongoDB host, port, and DB name. Users can share a MongoDB server, and each
-user can have multiple DB names -- each an independent space for workflows and worker
-nodes.
+server running MongoDB. Metadata parameters and the worker's `gce_my_launchpad.yaml`
+file (if that file doesn't exist, then `my_launchpad.yaml`) configure the
+MongoDB host, port, and DB name. Users can have their own DB names on a shared
+MongoDB server, and each user can have multiple DB names -- each an independent
+launchpad space for workflows and their Fireworker nodes.
 
 Workers get Fireworks from the LaunchPad, run them in "rapidfire" mode, and eventually
 time out and shut themselves down.
@@ -37,7 +38,7 @@ and doesn't scale as well.
 
 Using a Docker image lets you bundle up the payload task with its entire runtime,
 e.g. Python version, pips, Linux apts, and config files. Your workflow can use one or
-more Docker images, and they're isolated from the FWorker.
+more Docker images, and they're isolated from the Fireworker.
 
 
 ## Team Setup

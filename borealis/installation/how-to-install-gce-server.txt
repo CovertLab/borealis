@@ -155,14 +155,14 @@ pip show borealis-fireworks | grep Location
 # SRC=..../site-packages/borealis/installation
 
 ## Copy the launchpad yaml file from the borealis installation directory.
-cp ${SRC}/example_my_launchpad.yaml my_launchpad.yaml
+cp ${SRC}/example_my_launchpad.yaml gce_my_launchpad.yaml
 
-## Configure fireworker's my_launchpad.yaml
-# Edit my_launchpad.yaml with the `host:` and `port:` needed to connect to your
+## Configure fireworker's gce_my_launchpad.yaml
+# Edit gce_my_launchpad.yaml with the `host:` and `port:` needed to connect to your
 # MongoDB instance. (The database `name:`, `username:`, and `password:` fields
 # will normally be overridden by metadata attributes sent by the client.)
 # Optionally set a logdir like /home/fireworker/fw/logs for local Fireworks log files.
-nano my_launchpad.yaml
+nano gce_my_launchpad.yaml
 
 ## Copy the startup.sh script and the service file.
 cp ${SRC}/startup.sh .
