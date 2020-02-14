@@ -18,6 +18,7 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 import logging
+import os
 import socket
 import sys
 import time
@@ -307,6 +308,9 @@ def _shut_down(development, exit_code):
 
 def cli():
     """Command Line Interpreter to run a Fireworker."""
+    pkg_dir = os.path.dirname(__file__)
+    setup_dir = os.path.join(pkg_dir, 'setup')
+
     parser = argparse.ArgumentParser(
         description=
             'Run as a FireWorks worker node, launching rockets rapidfire.'
@@ -314,14 +318,22 @@ def cli():
             ' (GCS).'
             ' Gets configuration settings from GCE metadata attributes and'
             ' {}, with fallbacks.'
-            ' NOTE: This fireworks.py file is at "{}"'.format(
-                LAUNCHPAD_YAML, __file__))
+            ' NOTE: The setup data files are "{}/*"'.format(
+                LAUNCHPAD_YAML, setup_dir))
     parser.add_argument(
         '--development', action='store_true',
         help="Development mode: When done, just exit Python without deleting"
              " this GCE VM worker instance (if running on GCE).")
+    parser.add_argument(
+        '-s', '--setup', action='store_true',
+        help='Print the path containing the setup data files, then'
+             ' exit. Try: `SETUP=$(fireworker --setup)`')
 
     args = parser.parse_args()
+    if args.setup:
+        print(setup_dir, end='')
+        exit(0)
+
     main(development=args.development)
 
 

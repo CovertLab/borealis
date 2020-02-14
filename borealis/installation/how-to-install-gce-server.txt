@@ -149,15 +149,12 @@ pyenv local fireworker
 pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel borealis-fireworks
 pyenv rehash
 
-## Find the borealis installation directory within site-packages.
-pip show borealis-fireworks | grep Location
-## Append `/borealis/installation` to that `..../site-packages` directory.
-# SRC=..../site-packages/borealis/installation
-## Or get the installation directory from:
-fireworker --help
+## Find the borealis setup files that we'll need to copy.
+SETUP=$(fireworker --setup)
+echo The borealis-fireworker `setup` files are in: $SETUP
 
-## Copy the launchpad yaml file from the borealis installation directory.
-cp ${SRC}/example_my_launchpad.yaml gce_my_launchpad.yaml
+## Copy the launchpad yaml file from the borealis setup directory.
+cp ${SETUP}/example_my_launchpad.yaml gce_my_launchpad.yaml
 
 ## Configure fireworker's gce_my_launchpad.yaml
 # Edit gce_my_launchpad.yaml with the `host:` and `port:` needed to connect to your
@@ -167,8 +164,8 @@ cp ${SRC}/example_my_launchpad.yaml gce_my_launchpad.yaml
 nano gce_my_launchpad.yaml
 
 ## Copy the startup.sh script and the service file.
-cp ${SRC}/startup.sh .
-cp ${SRC}/borealis-fireworker.service .
+cp ${SETUP}/startup.sh .
+cp ${SETUP}/borealis-fireworker.service .
 
 # Logout from the fireworker account (^D).
 

@@ -25,7 +25,7 @@ setup(
         'subprocess32>=3.5.4',
     ],
     package_data={
-        'borealis': ['installation/*'],
+        'borealis': ['setup/*'],
     },
     entry_points={
         'console_scripts': [
