@@ -37,8 +37,7 @@ from borealis.util.log_filter import LogPrefixFilter
 
 #: The standard launchpad config filename (in CWD) to read.
 #: GCE instance metadata will override some field values.
-LAUNCHPAD_YAML = 'gce_my_launchpad.yaml'
-LAUNCHPAD_YAML2 = 'my_launchpad.yaml'
+DEFAULT_LAUNCHPAD_YAML = 'my_launchpad.yaml'
 DEFAULT_FIREWORKS_DATABASE = 'default_fireworks_database'
 
 ERROR_EXIT_CODE = 1
@@ -201,27 +200,8 @@ class Redacted(object):
         return '*****'
 
 
-def _read_launchpad_config():
-    # type: () -> dict
-    """Read the primary LAUNCHPAD_YAML or else the fallback LAUNCHPAD_YAML2.
-    Raises FileNotFoundError if neither file was found.
-    """
-    try:
-        with open(LAUNCHPAD_YAML) as f1:
-            return yaml.safe_load(f1)  # type: dict
-    except FileNotFoundError as e1:
-
-        try:
-            with open(LAUNCHPAD_YAML2) as f2:
-                return yaml.safe_load(f2)  # type: dict
-        except FileNotFoundError as _:
-            pass
-
-        raise  # continue propagating e1 (naming the primary file)
-
-
-def main(development=False):
-    # type: (bool) -> None
+def main(development=False, launchpad_file=DEFAULT_LAUNCHPAD_YAML):
+    # type: (bool, str) -> None
     """Run as a FireWorks worker node on Google Compute Engine (GCE), launching
     Fireworks rockets in rapidfire mode then deleting this GCE VM instance.
 
@@ -230,7 +210,7 @@ def main(development=False):
         attributes/db - DB name (user-specific or workflow-specific) [required]
         attributes/username - DB username [optional]
         attributes/password - DB password [optional]
-    secondarily from a launchpad yaml file:
+    secondarily from the named launchpad yaml file:
         host, port - for the DB connection [required]
         logdir, strm_lvl, ... [optional, for "launchpad" & "rocket" logging]
         DB name, DB username, and DB password [fallback]
@@ -255,7 +235,10 @@ def main(development=False):
         host_name = instance_name or socket.gethostname()
         _setup_logging(instance_name, host_name)
 
-        lpad_config = _read_launchpad_config()
+        FW_CONSOLE_LOGGER.info('Reading launchpad config "{}"'.format(
+            launchpad_file))
+        with open(launchpad_file) as f:
+            lpad_config = yaml.safe_load(f)  # type: dict
 
         db_name = (gcp.instance_metadata('attributes/db')
                    or lpad_config.get('name', DEFAULT_FIREWORKS_DATABASE))
@@ -315,26 +298,27 @@ def cli():
         description=
             'Run as a FireWorks worker node, launching rockets rapidfire.'
             ' Designed for Google Compute Engine (GCE) and Google Cloud Storage'
-            ' (GCS).'
-            ' Gets configuration settings from GCE metadata attributes and'
-            ' {}, with fallbacks.'
-            ' NOTE: The setup data files are "{}/*"'.format(
-                LAUNCHPAD_YAML, setup_dir))
-    parser.add_argument(
-        '--development', action='store_true',
+            ' (GCS). Gets configuration settings from GCE metadata attributes'
+            ' (when running on GCE) and from the Launchpad file (see the `-l`'
+            ' option), with fallbacks.'
+            ' The setup source files are "{}/*"'.format(setup_dir))
+    parser.add_argument('-l', dest='launchpad_file',
+        default=DEFAULT_LAUNCHPAD_YAML,
+        help='Launchpad config YAML filename (default="{}").'.format(
+            DEFAULT_LAUNCHPAD_YAML))
+    parser.add_argument('-s', '--setup', action='store_true',
+        help='Print the path containing the setup files, then'
+             ' exit. Try: `SETUP=$(fireworker --setup)`')
+    parser.add_argument('--development', action='store_true',
         help="Development mode: When done, just exit Python without deleting"
              " this GCE VM worker instance (if running on GCE).")
-    parser.add_argument(
-        '-s', '--setup', action='store_true',
-        help='Print the path containing the setup data files, then'
-             ' exit. Try: `SETUP=$(fireworker --setup)`')
 
     args = parser.parse_args()
     if args.setup:
-        print(setup_dir, end='')
+        print(setup_dir)
         exit(0)
 
-    main(development=args.development)
+    main(development=args.development, launchpad_file=args.launchpad_file)
 
 
 if __name__ == '__main__':

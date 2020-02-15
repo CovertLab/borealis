@@ -27,8 +27,10 @@ if os.name == 'posix' and sys.version_info[0] < 3:
 else:
     import subprocess
 
-from typing import Any, Dict, List, Optional
+from borealis.util import data
 from borealis.util import gcp
+import ruamel.yaml as yaml
+from typing import Any, Dict, List, Optional
 
 #: Access Scopes for the created GCE VMs.
 SCOPES = ','.join([
@@ -40,6 +42,8 @@ SCOPES = ','.join([
     'service-management',   # ?
     'trace',                # for debugging
 ])
+
+DEFAULT_LAUNCHPAD_YAML = 'my_launchpad.yaml'
 
 
 def _clean(token):
@@ -54,7 +58,8 @@ def _join_metadata(metadata):
     # type: (Dict[str, Any]) -> str
     """Join the metadata dictionary into a suitable shell token string."""
     return ','.join(
-        '{}={}'.format(_clean(k), _clean(v)) for k, v in metadata.items())
+        '{}={}'.format(_clean(k), _clean(v))
+        for k, v in metadata.items() if v is not None)
 
 
 def _options_list(options):
@@ -235,7 +240,8 @@ def cli():
         help='Delete VMs instead of creating VMs.')
     group.add_argument('--set-metadata', action='store_const', dest='action',
         const='metadata',
-        help='Set metadata on VMs instead of creating VMs. Set `-m quit=when-idle`'
+        help='Set metadata on existing VMs instead of creating VMs. E.g. use'
+             ' with `-m quit=when-idle`'
              ' to ask the specified Fireworkers to shut down gracefully.')
 
     parser.add_argument('name_prefix', metavar='NAME-PREFIX',
@@ -250,21 +256,39 @@ def cli():
         help='The number of VMs to create/delete/set (default=1).')
     parser.add_argument('-f', '--family', default='fireworker',
         help='The GCE Disk Image Family to create from (default="fireworker").'
-             ' ("sisyphus-worker" is also interesting.) (With "fireworker", be'
+             ' (With "fireworker", be'
              ' sure to set `-m db=MY_DATABASE_NAME`. With "sisyphus-worker", be'
              ' sure to set `-m workflow=MY_WORKFLOW_NAME`.)')
+    parser.add_argument('-l', dest='launchpad_file',
+        default=DEFAULT_LAUNCHPAD_YAML,
+        help='Launchpad config YAML filename to get the db name, username,'
+             ' and password metadata when creating VMs (default="{}").'
+             ' Use `-l ""` to skip this feature.'.format(
+            DEFAULT_LAUNCHPAD_YAML))
+    parser.add_argument('-m', '--metadata', metavar='KEY=VALUE',
+        action='append', default=[],
+        help='A GCE metadata "key=value" setting for when creating VMs or'
+             ' setting VMs’ metadata, e.g. "db=analyze" to'
+             ' point FireWorks workers to the named database. You can use'
+             ' this option zero or more times. It overrides Launchpad config'
+             ' fields.')
     parser.add_argument('-s', '--service-account', dest='service_account',
         help='The service account identity to attach when creating VMs, e.g.'
              ' "999999999999-compute@developer.gserviceaccount.com".')
-    parser.add_argument('-m', '--metadata', metavar='KEY=VALUE',
-        action='append', default=[],
-        help='A custom GCE metadata "key=value" setting, e.g. "db=analyze" to'
-             ' point FireWorks workers to a LaunchPad database. (You can use'
-             ' this option zero or more times.)')
 
     args = parser.parse_args()
+
+    # TODO(jerry): Allow multiple pairs per option "-m k1=v1,k2=v2"? Raise an
+    #  exception for illegal chars rather than quietly remove them?
     unpacked = [e.split('=', 2) + [''] for e in args.metadata]
     metadata = {e[0]: e[1] for e in unpacked}
+
+    if args.launchpad_file and args.action == 'create':
+        with open(args.launchpad_file) as f:
+            lpad_config = yaml.safe_load(f)  # type: dict
+            lpad_config['db'] = lpad_config.get('name')
+        metadata = data.select_keys(
+            lpad_config, ('db', 'username', 'password'), **metadata)
 
     # Cross-check the args.
     if args.action == 'create':

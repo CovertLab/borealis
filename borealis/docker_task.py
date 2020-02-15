@@ -47,8 +47,8 @@ def captures(path):
 class DockerTask(FiretaskBase):
     _fw_name = 'DockerTask'
 
-    # Parms
-    # -----
+    # Params
+    # ------
     # name: the payload task name, for logging.
     #
     # image: the Docker Image to pull.

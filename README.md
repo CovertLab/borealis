@@ -68,14 +68,23 @@ TODO
 
 # Change Log
 
+## v0.3.0 - 2020-02-14
+* Move the setup files from `borealis/installation/` to `borealis/setup/`.
+* Add a `fireworker --setup` option to print the setup path to simplify the
+  steps to copy those files when setting up a server Disk Image.
+* Add a `fireworker -l <launchpad_filename>` option for compatibility with
+ `lpad`. The default is back to `my_launchpad.yaml`.
+* Add a `gce -l <launchpad_filename>` option, like `lpad`, to read the db name,
+  username, and password when creating VMs. The default is `my_launchpad.yaml`.
+
 ## v0.2.1 - 2020-02-13
 * Bug fix in the `gce_my_launchpad.yaml` fallback code.
 
 ## v0.2.0 - 2020-02-13
 * Read launchpad config info from `gce_my_launchpad.yaml` if possible, falling
-  back to `my_launchpad.yaml` for compatibility. This lets people use one
-  launchpad config file for their GCE workflows and another one for their other
-  workflows.
+  back to `my_launchpad.yaml` for compatibility with previous releases. This
+  lets people use one launchpad config file for their GCE workflows and another
+  one for their other workflows.
 * Improve the server installation steps and augment the `fireworker --help` text
   to display its directory.
 

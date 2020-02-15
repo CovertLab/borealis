@@ -7,7 +7,7 @@ __pycache__/
 
 # Fireworks
 launcher_*
-my_*.yaml
+/*.yaml
 block_*
 FW.json
 /logs/
