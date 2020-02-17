@@ -35,9 +35,9 @@ import ruamel.yaml as yaml
 from borealis.util import gcp
 from borealis.util.log_filter import LogPrefixFilter
 
-#: The standard launchpad config filename (in CWD) to read.
+#: The default launchpad config filename (in CWD) to read.
 #: GCE instance metadata will override some field values.
-DEFAULT_LAUNCHPAD_YAML = 'my_launchpad.yaml'
+DEFAULT_LPAD_YAML = 'my_launchpad.yaml'
 DEFAULT_FIREWORKS_DATABASE = 'default_fireworks_database'
 
 ERROR_EXIT_CODE = 1
@@ -200,7 +200,7 @@ class Redacted(object):
         return '*****'
 
 
-def main(development=False, launchpad_file=DEFAULT_LAUNCHPAD_YAML):
+def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
     # type: (bool, str) -> None
     """Run as a FireWorks worker node on Google Compute Engine (GCE), launching
     Fireworks rockets in rapidfire mode then deleting this GCE VM instance.
@@ -236,8 +236,8 @@ def main(development=False, launchpad_file=DEFAULT_LAUNCHPAD_YAML):
         _setup_logging(instance_name, host_name)
 
         FW_CONSOLE_LOGGER.info('Reading launchpad config "{}"'.format(
-            launchpad_file))
-        with open(launchpad_file) as f:
+            launchpad_filename))
+        with open(launchpad_filename) as f:
             lpad_config = yaml.safe_load(f)  # type: dict
 
         db_name = (gcp.instance_metadata('attributes/db')
@@ -302,10 +302,10 @@ def cli():
             ' (when running on GCE) and from the Launchpad file (see the `-l`'
             ' option), with fallbacks.'
             ' The setup source files are "{}/*"'.format(setup_dir))
-    parser.add_argument('-l', dest='launchpad_file',
-        default=DEFAULT_LAUNCHPAD_YAML,
+    parser.add_argument('-l', dest='launchpad_filename',
+        default=DEFAULT_LPAD_YAML,
         help='Launchpad config YAML filename (default="{}").'.format(
-            DEFAULT_LAUNCHPAD_YAML))
+            DEFAULT_LPAD_YAML))
     parser.add_argument('-s', '--setup', action='store_true',
         help='Print the path containing the setup files, then'
              ' exit. Try: `SETUP=$(fireworker --setup)`')
@@ -318,7 +318,7 @@ def cli():
         print(setup_dir)
         exit(0)
 
-    main(development=args.development, launchpad_file=args.launchpad_file)
+    main(development=args.development, launchpad_filename=args.launchpad_filename)
 
 
 if __name__ == '__main__':

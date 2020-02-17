@@ -43,7 +43,7 @@ SCOPES = ','.join([
     'trace',                # for debugging
 ])
 
-DEFAULT_LAUNCHPAD_YAML = 'my_launchpad.yaml'
+DEFAULT_LPAD_YAML = 'my_launchpad.yaml'
 
 
 def _clean(token):
@@ -259,18 +259,20 @@ def cli():
              ' (With "fireworker", be'
              ' sure to set `-m db=MY_DATABASE_NAME`. With "sisyphus-worker", be'
              ' sure to set `-m workflow=MY_WORKFLOW_NAME`.)')
-    parser.add_argument('-l', dest='launchpad_file',
-        default=DEFAULT_LAUNCHPAD_YAML,
-        help='Launchpad config YAML filename to get the db name, username,'
-             ' and password metadata when creating VMs (default="{}").'
-             ' Use `-l ""` to skip this feature.'.format(
-            DEFAULT_LAUNCHPAD_YAML))
+    parser.add_argument('-l', dest='launchpad_filename',
+        default=DEFAULT_LPAD_YAML,
+        help='LaunchPad config YAML filename to get the db name, username,'
+             ' and password metadata when creating VMs (default="{}"). This'
+             ' will create GCE VMs which connect to that LaunchPad db.'
+             ' Use `-l ""` to skip this config file if you want to do it all'
+             ' via `-m key=value` options.'.format(
+            DEFAULT_LPAD_YAML))
     parser.add_argument('-m', '--metadata', metavar='KEY=VALUE',
         action='append', default=[],
         help='A GCE metadata "key=value" setting for when creating VMs or'
              ' setting VMs’ metadata, e.g. "db=analyze" to'
              ' point FireWorks workers to the named database. You can use'
-             ' this option zero or more times. It overrides Launchpad config'
+             ' this option zero or more times. It overrides LaunchPad config'
              ' fields.')
     parser.add_argument('-s', '--service-account', dest='service_account',
         help='The service account identity to attach when creating VMs, e.g.'
@@ -283,8 +285,8 @@ def cli():
     unpacked = [e.split('=', 2) + [''] for e in args.metadata]
     metadata = {e[0]: e[1] for e in unpacked}
 
-    if args.launchpad_file and args.action == 'create':
-        with open(args.launchpad_file) as f:
+    if args.launchpad_filename and args.action == 'create':
+        with open(args.launchpad_filename) as f:
             lpad_config = yaml.safe_load(f)  # type: dict
             lpad_config['db'] = lpad_config.get('name')
         metadata = data.select_keys(
