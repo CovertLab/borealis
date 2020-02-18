@@ -11,10 +11,17 @@ from typing import Optional
 
 from borealis.util import filepath as fp
 
-#: Console-only logger.
-CONSOLE_LOGGER = logging.getLogger('fireworker.gcp')
-CONSOLE_LOGGER.setLevel(logging.DEBUG)
-CONSOLE_LOGGER.propagate = False
+
+def _console_logger():
+    # type: () -> logging.Logger
+    """Return a console-only Logger."""
+    logger = logging.getLogger('fireworker.gcp')
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+
+    if not logger.handlers:
+        logger.addHandler(logging.StreamHandler())
+    return logger
 
 
 def gcloud_get_config(section_property):
@@ -98,19 +105,20 @@ def delete_this_vm(exit_code=0):
     """Ask gcloud to delete this GCE VM instance if running on GCE. In any case
     exit Python if not already shut down, and Python cleanup actions might run.
     """
+    logger = _console_logger()
     name = gce_instance_name()
 
     if name:
-        CONSOLE_LOGGER.warning('Deleting GCE VM "%s"...', name)
+        logger.warning('Deleting GCE VM "%s"...', name)
         my_zone = zone()
         try:
             fp.run_cmd(['gcloud', '--quiet', 'compute', 'instances', 'delete',
                         name, '--zone', my_zone])
         except subprocess.CalledProcessError as e:
-            CONSOLE_LOGGER.error("Couldn't delete GCE VM %s: %s", name, e.stderr)
+            logger.error("Couldn't delete GCE VM %s: %s", name, e.stderr)
         except (subprocess.TimeoutExpired, OSError):
-            CONSOLE_LOGGER.exception("Couldn't delete GCE VM %s", name)
+            logger.exception("Couldn't delete GCE VM %s", name)
     else:
-        CONSOLE_LOGGER.warning('Exiting (not running on GCE).')
+        logger.warning('Exiting (not running on GCE).')
 
     sys.exit(exit_code)

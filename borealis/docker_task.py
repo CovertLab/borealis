@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function
 from collections import namedtuple
 import logging
 import os
-from pprint import pprint
+from pprint import pformat
 import shutil
 from typing import Any, List, Optional
 
@@ -18,6 +18,7 @@ from docker.utils import parse_repository_tag
 from fireworks import explicit_serialize, FiretaskBase, FWAction
 import requests
 
+from borealis.util import data
 import borealis.util.filepath as fp
 import borealis.util.storage as st
 
@@ -118,6 +119,7 @@ class DockerTask(FiretaskBase):
         self._log().info('Pulling Docker image %s:%s', repository, tag)
         try:
             image = docker_client.images.pull(repository, tag)
+            self._log().info('Pulled Docker image %s', image.id)
         except requests.ConnectionError as e:
             raise OSError("Couldn't connect to the Docker server. You might"
                           " need to install one or start it. {!r}".format(e))
@@ -174,8 +176,8 @@ class DockerTask(FiretaskBase):
         return [self.setup_mount(path, os.path.join(self.LOCAL_BASEDIR, group))
                 for path in self.get(group, [])]
 
-    def _outputs_to_push(self, lines, success, outs, epilogue):
-        # type: (List[str], bool, List[PathMapping], str) -> List[PathMapping]
+    def _outputs_to_push(self, lines, success, outs, prologue, epilogue):
+        # type: (List[str], bool, List[PathMapping], str, str) -> List[PathMapping]
         """Write requested stdout+stderr and log output files, then return a
         list of all output PathMappings to push to GCS. That's all of them if
         the Task succeeded; only the '>>' logs if it failed.
@@ -189,8 +191,7 @@ class DockerTask(FiretaskBase):
                         hr = ''
                         if out.captures == '>>':
                             hr = '-' * 80
-                            pprint(self.to_dict(), f)  # prologue
-                            f.write('\n{}\n'.format(hr))
+                            f.write('{}\n\n{}\n'.format(prologue, hr))
 
                         f.writelines(lines)
 
@@ -270,16 +271,28 @@ class DockerTask(FiretaskBase):
         name = self['name']
         errors = []  # type: List[str]
         lines = []  # type: List[str]
+        image = None
         logger = self._log()
 
         def check(success, or_error):
             if not success:
                 errors.append(or_error)
 
-        def epilog():
+        def prologue():
+            return ('{} DockerTask {}\n'
+                    'Docker Image ID: {}\n\n'
+                    '{}').format(
+                data.timestamp(),
+                self['name'],
+                image.id if image else '---',
+                pformat(self.to_dict()))
+
+        def epilogue():
             # TODO(jerry): Include the elapsed time and the timeout parameter.
             return '{} task: {} {}'.format(
-                'FAILED' if errors else 'SUCCESSFUL', name, errors if errors else '')
+                'FAILED' if errors else 'SUCCESSFUL',
+                name,
+                errors if errors else '')
 
         logger.warning('STARTING TASK: %s', name)
 
@@ -319,7 +332,8 @@ class DockerTask(FiretaskBase):
                 except docker_errors.APIError as e:  # troubling but not a task error
                     logger.exception('Docker error removing a container')
 
-            to_push = self._outputs_to_push(lines, not errors, outs, epilog())
+            to_push = self._outputs_to_push(
+                lines, not errors, outs, prologue(), epilogue())
 
             # NOTE: The >>task.log file won't report push failures since it's
             # written before pushing and might itself fail to push. But the
@@ -332,7 +346,7 @@ class DockerTask(FiretaskBase):
             check(False, repr(e))
             raise
         finally:
-            logger.warning('%s', epilog())
+            logger.warning('%s', epilogue())
 
             # [Could wipe just os.path.join(self.LOCAL_BASEDIR, 'inputs') to
             # keep the outputs for local scrutiny.]
