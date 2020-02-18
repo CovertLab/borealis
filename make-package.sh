@@ -6,7 +6,7 @@ set -eu
 # 1. Manually update the version number in the setup.py file.
 
 # 2. Clean out the old build products.
-rm -rf dist build borealis_fireworks.egg-info
+rm -rf dist/* build/* borealis_fireworks.egg-info
 
 # 3. Build source-distribution and binary-distribution packages.
 python setup.py sdist bdist_wheel --universal
