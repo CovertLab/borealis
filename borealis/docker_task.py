@@ -179,8 +179,8 @@ class DockerTask(FiretaskBase):
     def _outputs_to_push(self, lines, success, outs, prologue, epilogue):
         # type: (List[str], bool, List[PathMapping], str, str) -> List[PathMapping]
         """Write requested stdout+stderr and log output files, then return a
-        list of all output PathMappings to push to GCS. That's all of them if
-        the Task succeeded; only the '>>' logs if it failed.
+        list of output PathMappings to push to GCS: all of them if the Task
+        succeeded; only the '>>' logs if it failed.
         """
         to_push = []
 
@@ -216,7 +216,11 @@ class DockerTask(FiretaskBase):
         gcs = st.CloudStorage(prefix)
 
         for mapping in to_push:
-           ok = gcs.upload_tree(mapping.local, mapping.sub_path) and ok
+           sub_dir, filename = os.path.split(mapping.sub_path)
+           if mapping.captures == '>>' and filename:
+               filename = '{}_{}'.format(data.timestamp(), filename)
+           sub_path = os.path.join(sub_dir, filename)
+           ok = gcs.upload_tree(mapping.local, sub_path) and ok
 
         return ok
 
