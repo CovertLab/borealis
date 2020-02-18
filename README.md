@@ -68,6 +68,9 @@ TODO
 
 # Change Log
 
+## v0.3.2 - 2020-02-17
+* Add info to the logs.
+
 ## v0.3.1 - 2020-02-17
 * Python 2 compatibility fixes.
 * Explain the `ConnectionError` that arises when `fireworker` can't contact the Docker server.
