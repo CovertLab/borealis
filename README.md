@@ -68,6 +68,10 @@ TODO
 
 # Change Log
 
+## v0.3.1 - 2020-02-17
+* Python 2 compatibility fixes.
+* Explain the `ConnectionError` that arises when `fireworker` can't contact the Docker server.
+
 ## v0.3.0 - 2020-02-14
 * Move the setup files from `borealis/installation/` to `borealis/setup/`.
 * Add a `fireworker --setup` option to print the setup path to simplify the

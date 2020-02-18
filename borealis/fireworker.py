@@ -109,7 +109,7 @@ def _cleanup_logging():
     """
     root = logging.getLogger()
 
-    for handler in root.handlers.copy():
+    for handler in list(root.handlers):
         if hasattr(handler, 'transport'):
             transport = handler.transport
             if hasattr(transport, 'flush'):

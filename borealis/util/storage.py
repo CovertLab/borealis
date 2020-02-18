@@ -2,7 +2,6 @@
 
 from __future__ import absolute_import, division, print_function
 
-import itertools
 import logging
 import os
 from typing import Iterator, List, Optional, Union, Set
@@ -125,9 +124,10 @@ class CloudStorage(object):
         See clear_directory_cache().
         """
         parts = os.path.join(self.path_prefix, sub_path).split(os.sep)[:-1]
+        dir_name = ''
 
-        for prefix in itertools.accumulate(parts, os.path.join):
-            dir_name = os.path.join(prefix, '')
+        for subdir in parts:
+            dir_name = os.path.join(dir_name, subdir, '')
 
             if dir_name not in self._directory_cache:
                 self._directory_cache.add(dir_name)
@@ -159,7 +159,7 @@ class CloudStorage(object):
 
             blob = self.bucket.blob(full_path)
             blob.upload_from_filename(local_path)  # guesses content_type from the path
-        except (GoogleCloudError, FileNotFoundError) as e:
+        except (GoogleCloudError, OSError) as e:
             logging.exception(
                 'Failed to upload "%s" as GCS "%s"', local_path, full_path)
             return False

@@ -16,6 +16,7 @@ from docker import errors as docker_errors
 from docker.types import Mount
 from docker.utils import parse_repository_tag
 from fireworks import explicit_serialize, FiretaskBase, FWAction
+import requests
 
 import borealis.util.filepath as fp
 import borealis.util.storage as st
@@ -115,7 +116,12 @@ class DockerTask(FiretaskBase):
         if not tag:
             tag = 'latest'  # 'latest' is the default tag; it doesn't mean squat
         self._log().info('Pulling Docker image %s:%s', repository, tag)
-        return docker_client.images.pull(repository, tag)
+        try:
+            image = docker_client.images.pull(repository, tag)
+        except requests.ConnectionError as e:
+            raise OSError("Couldn't connect to the Docker server. You might"
+                          " need to install one or start it. {!r}".format(e))
+        return image
 
     def rebase(self, internal_path, new_prefix):
         # type: (str, str) -> str
