@@ -68,6 +68,10 @@ TODO
 
 # Change Log
 
+## v0.3.3
+* Timestamp the captured log files to keep them all from multiple runs and `ls`
+  sorts in time order.
+
 ## v0.3.2 - 2020-02-17
 * Add info to the logs.
 
