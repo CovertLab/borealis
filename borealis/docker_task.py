@@ -57,46 +57,49 @@ def captures(path):
 
 @explicit_serialize
 class DockerTask(FiretaskBase):
+    """
+    Firetask Parameters
+    -------------------
+    name: the payload task name, for logging.
+
+    image: the Docker Image to pull.
+
+    command: the shell command tokens to run in the Docker Container.
+
+    internal_prefix: the base pathname inside the Docker Container for inputs
+      and outputs (files and directory trees).
+
+    storage_prefix: the GCS base pathname for inputs and outputs.
+
+    inputs, outputs: absolute pathnames internal to the Docker container of
+      input/output files and directories to pull/push to GCS. DockerTask will
+      construct the corresponding GCS storage paths by rebasing each path from
+      `internal_prefix` to `storage_prefix`, and the corresponding local paths
+      outside the container by rebasing each path to `local_prefix`.
+
+      NOTE: Each path in `inputs` and `outputs` names a directory tree of
+      files if it ends with '/', otherwise a file. This is needed because the
+      GCS is a flat object store without directories and DockerTask needs to
+      know whether to create files or directories.
+
+      If the task completes normally, DockerTask will all its outputs to GCS.
+      Otherwise, it only writes '>>' log files.
+
+      An output path that starts with '>>' will capture a log of stdout +
+      stderr + other log messages like elapsed time and task exit code.
+      DockerTask will write it even if the task fails (to aid debugging),
+      unlike all the other outputs.
+
+      An output path that starts with '>' captures stdout + stderr. The rest
+      of the path is as if internal to the container, and will get rebased to
+      to compute its storage path.
+
+    timeout: in seconds, indicates how long to let the task run.
+    """
+
     _fw_name = 'DockerTask'
     DEFAULT_TIMEOUT_SECONDS = 60 * 60
 
-    # Params
-    # ------
-    # name: the payload task name, for logging.
-    #
-    # image: the Docker Image to pull.
-    #
-    # command: the shell command tokens to run in the Docker Container.
-    #
-    # internal_prefix: the base pathname inside the Docker Container for inputs
-    #   and outputs (files and directory trees).
-    #
-    # storage_prefix: the GCS base pathname for inputs and outputs.
-    #
-    # inputs, outputs: absolute pathnames internal to the Docker container of
-    #   input/output files and directories to pull/push to GCS. DockerTask will
-    #   construct the corresponding GCS storage paths by rebasing each path from
-    #   `internal_prefix` to `storage_prefix`, and the corresponding local paths
-    #   outside the container by rebasing each path to `local_prefix`.
-    #
-    #   NOTE: Each path in `inputs` and `outputs` names a directory tree of
-    #   files if it ends with '/', otherwise a file. This is needed because the
-    #   GCS is a flat object store without directories and DockerTask needs to
-    #   know whether to create files or directories.
-    #
-    #   If the task completes normally, DockerTask will all its outputs to GCS.
-    #   Otherwise, it only writes '>>' log files.
-    #
-    #   An output path that starts with '>>' will capture a log of stdout +
-    #   stderr + other log messages like elapsed time and task exit code.
-    #   DockerTask will write it even if the task fails (to aid debugging),
-    #   unlike all the other outputs.
-    #
-    #   An output path that starts with '>' captures stdout + stderr. The rest
-    #   of the path is as if internal to the container, and will get rebased to
-    #   to compute its storage path.
-    #
-    # timeout: in seconds, indicates how long to let the task run.
     required_params = [
         'name',
         'image',
@@ -166,7 +169,21 @@ class DockerTask(FiretaskBase):
         (local file system), make the Docker local:internal Mount object, and
         create the local file or directory so Docker can detect whether to mount
         a file or directory.
+
+        Timestamp log filenames to preserve the run history and improve alpha
+        sorting.
         """
+        caps = captures(internal_path)
+
+        if caps:
+            sub_dir, filename = os.path.split(internal_path)
+            if not filename:
+                raise ValueError('Capture path must not name a directory: "{}"'
+                                 .format(internal_path))
+            if caps == '>>':
+                filename = '{}_{}'.format(data.timestamp(), filename)
+                internal_path = os.path.join(sub_dir, filename)
+
         local_path = self.rebase(internal_path, local_prefix)
         sub_path = self.rebase(internal_path, '')
 
@@ -175,7 +192,6 @@ class DockerTask(FiretaskBase):
             open(local_path, 'a').close()
 
         # Create the Docker Mount unless this mapping will capture stdout & stderr.
-        caps = captures(internal_path)
         mount = (None if caps
                  else Mount(target=internal_path, source=local_path, type='bind'))
 
@@ -228,11 +244,7 @@ class DockerTask(FiretaskBase):
         gcs = st.CloudStorage(prefix)
 
         for mapping in to_push:
-           sub_dir, filename = os.path.split(mapping.sub_path)
-           if mapping.captures == '>>' and filename:
-               filename = '{}_{}'.format(data.timestamp(), filename)
-           sub_path = os.path.join(sub_dir, filename)
-           ok = gcs.upload_tree(mapping.local, sub_path) and ok
+           ok = gcs.upload_tree(mapping.local, mapping.sub_path) and ok
 
         return ok
 
