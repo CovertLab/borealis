@@ -23,3 +23,10 @@ def timestamp(dt=None):
         dt = datetime.datetime.now()
 
     return dt.strftime('%Y%m%d.%H%M%S')
+
+
+def format_duration(seconds):
+    # type: (float) -> str
+    """Format a time duration from seconds to [days] HH:MM:SS. No microseconds."""
+    delta = datetime.timedelta(seconds=round(seconds))
+    return str(delta)

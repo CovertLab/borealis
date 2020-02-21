@@ -9,10 +9,13 @@ import logging
 import os
 from pprint import pformat
 import shutil
+from threading import Timer
+import time
 from typing import Any, List, Optional
 
 import docker
 from docker import errors as docker_errors
+from docker.models.containers import Container
 from docker.types import Mount
 from docker.utils import parse_repository_tag
 from fireworks import explicit_serialize, FiretaskBase, FWAction
@@ -28,6 +31,13 @@ class DockerTaskError(Exception):
 
 
 PathMapping = namedtuple('PathMapping', 'captures local_prefix local sub_path mount')
+
+
+try:
+    seconds_clock = time.monotonic
+except AttributeError:
+    # This clock works in Python 2 but it goes down if the system clock gets set back.
+    seconds_clock = time.time
 
 
 def uid_gid():
@@ -48,6 +58,7 @@ def captures(path):
 @explicit_serialize
 class DockerTask(FiretaskBase):
     _fw_name = 'DockerTask'
+    DEFAULT_TIMEOUT_SECONDS = 60 * 60
 
     # Params
     # ------
@@ -151,7 +162,7 @@ class DockerTask(FiretaskBase):
     def setup_mount(self, internal_path, local_prefix):
         # type: (str, str) -> PathMapping
         """Create a PathMapping between a path internal to the Docker container
-        and a sub_path relative the storage_prefix (GCS) and the local_prefix
+        and a sub_path relative to the storage_prefix (GCS) and to the local_prefix
         (local file system), make the Docker local:internal Mount object, and
         create the local file or directory so Docker can detect whether to mount
         a file or directory.
@@ -173,7 +184,8 @@ class DockerTask(FiretaskBase):
     def setup_mounts(self, group):
         # type: (str) -> List[PathMapping]
         """Set up all the mounts for the 'inputs' or 'outputs' group."""
-        return [self.setup_mount(path, os.path.join(self.LOCAL_BASEDIR, group))
+        group_base_dir = os.path.join(self.LOCAL_BASEDIR, group)
+        return [self.setup_mount(path, group_base_dir)
                 for path in self.get(group, [])]
 
     def _outputs_to_push(self, lines, success, outs, prologue, epilogue):
@@ -239,6 +251,22 @@ class DockerTask(FiretaskBase):
 
         return ok
 
+    def terminate(self, container, reason, terminated):
+        # type: (Container, str, List[bool]) -> None
+        """Terminate the Docker Container's process.
+
+        NOTE: "The KeyboardInterrupt exception will be received by an arbitrary
+        thread." -- https://docs.python.org/3.8/library/_thread.html
+        """
+        name = self['name']
+        logger = self._log()
+        logger.info('Terminating task {} for {}...'.format(name, reason))
+
+        container.stop()
+        terminated[0] = True
+
+        logger.warning('Terminated task {} for {}'.format(name, reason))
+
 
     # ODDITIES ABOUT THE PYTHON DOCKER PACKAGE
     #
@@ -272,10 +300,13 @@ class DockerTask(FiretaskBase):
     def run_task(self, fw_spec):
         # type: (dict) -> Optional[FWAction]
         """Run a task as a shell command in a Docker container."""
+        start_timestamp = data.timestamp()
         name = self['name']
         errors = []  # type: List[str]
         lines = []  # type: List[str]
         image = None
+        timeout = self.get('timeout', self.DEFAULT_TIMEOUT_SECONDS)
+        elapsed = '---'
         logger = self._log()
 
         def check(success, or_error):
@@ -283,19 +314,20 @@ class DockerTask(FiretaskBase):
                 errors.append(or_error)
 
         def prologue():
-            return ('{} DockerTask {}\n'
-                    'Docker Image ID: {}\n\n'
-                    '{}').format(
-                data.timestamp(),
-                self['name'],
-                image.id if image else '---',
-                pformat(self.to_dict()))
+            return ('{} DockerTask {}\n\n'
+                    '{}\n\n'
+                    'Docker Image ID: {}').format(
+                start_timestamp,
+                name,
+                pformat(self.to_dict()),
+                image.id if image else '---')
 
         def epilogue():
-            # TODO(jerry): Include the elapsed time and the timeout parameter.
-            return '{} task: {} {}'.format(
+            return '{} task: {}, elapsed {} of timeout parameter {} {}'.format(
                 'FAILED' if errors else 'SUCCESSFUL',
                 name,
+                elapsed,
+                data.format_duration(timeout),
                 errors if errors else '')
 
         logger.warning('STARTING TASK: %s', name)
@@ -309,24 +341,40 @@ class DockerTask(FiretaskBase):
 
             check(self.pull_from_gcs(ins), 'Failed to pull inputs')
 
+            # -----------------------------------------------------
             logger.info('Running: %s', self['command'])
+            mounts = [mapping.mount for mapping in ins + outs if mapping.mount]
+            start_secs = seconds_clock()
             container = docker_client.containers.run(
                 image,
                 command=self['command'],
                 user=uid_gid(),
-                mounts=[mapping.mount for mapping in ins + outs if mapping.mount],
-                detach=True)
+                mounts=mounts,
+                detach=True)  # type: Container
 
             try:
-                for line in container.logs(stream=True):  # TODO: Set follow=True?
-                    # NOTE: Can call stream.close() to cancel from another thread.
-                    line = line.decode()
-                    lines.append(line)
-                    logger.info('%s', line.rstrip())
+                terminated = [False]
+                args = (container, 'timeout', terminated)
+                timer = Timer(timeout, self.terminate, args=args)
+                timer.start()
 
-                exit_code = container.wait()['StatusCode']
+                try:
+                    for line in container.logs(stream=True):
+                        line = line.decode()
+                        lines.append(line)
+                        logger.info('%s', line.rstrip())
+                finally:
+                    timer.cancel()
+
+                end_seconds = seconds_clock()
+                exit_code = container.wait(timeout=10)['StatusCode']
+                elapsed = data.format_duration(end_seconds - start_secs)
+                # -----------------------------------------------------
+
+                check(not terminated[0], 'Cancelled by timeout')
                 check(exit_code == 0, 'Exit code {}{}'.format(
                     exit_code, ' (SIGKILL)' if exit_code == 137 else ''))
+                container.reload()  # query the Docker daemon for current attrs
                 state = container.attrs.get('State')
                 if isinstance(state, dict):
                     check(not state.get('OOMKilled'), 'OOM-Killed')
