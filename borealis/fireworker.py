@@ -22,7 +22,7 @@ import os
 import socket
 import sys
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fireworks import LaunchPad, FWorker, fw_config
 from fireworks.core import rocket_launcher
@@ -39,6 +39,8 @@ from borealis.util.log_filter import LogPrefixFilter
 #: GCE instance metadata will override some field values.
 DEFAULT_LPAD_YAML = 'my_launchpad.yaml'
 DEFAULT_FIREWORKS_DATABASE = 'default_fireworks_database'
+DEFAULT_IDLE_FOR_WAITERS = 60 * 60  # seconds
+DEFAULT_IDLE_FOR_ROCKETS = 15 * 60  # seconds
 
 ERROR_EXIT_CODE = 1
 KEYBOARD_INTERRUPT_EXIT_CODE = 2
@@ -75,13 +77,14 @@ def _setup_logging(gce_instance_name, host_name):
         name=FW_LOGGER.name,
         resource=monitored_resource)
 
-    # For aggregate cloud logs: Filter out debug details and when running off
-    # GCE also filter out the dockerfiretask payload stdout lines, keeping just
-    # the WARNINGs and start/end messages. (Use WARNING rather than NOTICE level
-    # for start/end because Logs Viewer doesn't support NOTICE very well.) We
-    # can't `exclude` those loggers since that'd block their WARNINGs.
+    # To StackDriver cloud logs (which aggregate all machines): From workers
+    # running "locally" (off GCE), log at the WARNING level including start/end
+    # messages (which should be at the NOTICE level but Logs Viewer is unhelpful
+    # with NOTICE). That filters out the 'dockerfiretask' payload stdout lines.
+    # From workers on GCE, log at the DEBUG level to enable remote debugging.
+    # Set the Logs Viewer to INFO level for more conciseness.
     #
-    # Console logs: Filter out messages already printed by handlers of nested
+    # To console logs: Filter out messages already printed by handlers on nested
     # loggers "launchpad" and "rocket.launcher", allowing WARNINGs just in case.
     root = logging.getLogger()
     fworker_level = logging.DEBUG if gce_instance_name else logging.WARNING
@@ -128,7 +131,13 @@ class Fireworker(object):
 
     def __init__(self, lpad_config, host_name):
         # type: (Dict[str, Any], str) -> None
-        self.lpad_config = lpad_config
+        """
+        :param lpad_config: LaunchPad() configuration parameters *and*
+            idle_for_waiters: see launch_rockets(), default = 60 minutes;
+            idle_for_rockets: see launch_rockets(), default = 15 minutes
+        :param host_name: this network host name
+        """
+        self.lpad_config = lpad_config.copy()
         self.host_name = host_name
 
         # NOTE: FireWorks creates loggers with stdout stream handlers for each
@@ -138,8 +147,8 @@ class Fireworker(object):
         fw_config.ROCKET_STREAM_LOGLEVEL = self.strm_lvl
 
         self.sleep_secs = 10
-        self.idle_for_waiters = 60 * 60
-        self.idle_for_queued = 15 * 60  # TODO(jerry): Rename this
+        self.idle_for_waiters = int(lpad_config.pop('idle_for_waiters', DEFAULT_IDLE_FOR_WAITERS))
+        self.idle_for_rockets = int(lpad_config.pop('idle_for_rockets', DEFAULT_IDLE_FOR_ROCKETS))
 
         self.launchpad = LaunchPad(**lpad_config)
         self.launchpad.m_logger.setLevel(self.strm_lvl)  # set non-stream level
@@ -152,8 +161,10 @@ class Fireworker(object):
     def launch_rockets(self):
         # type: () -> None
         """Keep launching rockets that are ready to go. Stop after:
-          * idling idle_for_waiters secs for WAITING rockets to become ready,
-          * idling idle_for_queued secs if no rockets are even waiting,
+          * idling idle_for_waiters secs for WAITING rockets to become READY
+            (known tasks are waiting on other tasks),
+          * idling idle_for_rockets secs for existing or new rockets (there's
+            nothing to do yet),
           * the custom metadata field `attributes/quit` becomes 'when-idle'.
 
         The first timeout should be long enough to wait around to run queued
@@ -180,10 +191,10 @@ class Fireworker(object):
             idled = self.sleep_secs  # rapidfire() just slept once
             while not self.launchpad.run_exists(self.fireworker):  # none ready to run
                 future_work = self.launchpad.future_run_exists(self.fireworker)  # any waiting?
-                if idled >= (self.idle_for_waiters if future_work else self.idle_for_queued):
+                if idled >= (self.idle_for_waiters if future_work else self.idle_for_rockets):
                     return
 
-                if gcp.instance_metadata('attributes/quit') == 'when-idle':
+                if gcp.instance_attribute('quit') == 'when-idle':
                     FW_LOGGER.info('Quitting by "when-idle" request')
                     return
 
@@ -205,29 +216,51 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
     """Run as a FireWorks worker node on Google Compute Engine (GCE), launching
     Fireworks rockets in rapidfire mode then deleting this GCE VM instance.
 
-    Get configuration settings from GCE VM metadata fields:
-        name - the Fireworker name [required]
-        attributes/db - DB name (user-specific or workflow-specific) [required]
-        attributes/username - DB username [optional]
-        attributes/password - DB password [optional]
-    secondarily from the named launchpad yaml file:
-        host, port - for the DB connection [required]
-        logdir, strm_lvl, ... [optional, for "launchpad" & "rocket" logging]
-        DB name, DB username, and DB password [fallback]
+    Get initialization configuration settings from GCE VM metadata fields (when
+    on GCE):
+        name - the Fireworker name
+        attributes/db - DB name (user-specific or workflow-specific)
+        attributes/username - DB username
+        attributes/password - DB password
+        attributes/idle_for_waiters - idle this many seconds for WAITING rockets
+            to become READY (known tasks are waiting on other tasks)
+        attributes/idle_for_rockets - idle this many seconds for existing or new
+            rockets (there's nothing to do yet)
+    else from the launchpad yaml file named by the `launchpad_filename` arg:
+        DB host, DB port - for the MongoDB connection
+        DB name
+        DB username, DB password - null for no user authentication
+        logdir, strm_lvl, ... - for "launchpad" & "rocket" logging
+        idle_for_waiters, idle_for_rockets
     with fallbacks:
-        name - 'fireworker'
+        name - the network hostname
+        DB host, DB port - localhost:27017 (Fireworks defaults)
         DB name - DEFAULT_FIREWORKS_DATABASE
         DB username, DB password - null
         logdir, strm_lvl - FireWorks defaults
+        idle_for_waiters, idle_for_rockets - see Fireworker()
 
     The DB username and password are needed if MongoDB is set up to require
     authentication, and it could use shared or user-specific accounts.
 
-    TODO: Add configuration settings for idle_for_waiters and idle_for_queued.
-
     You can set a custom metadata field to make this worker stop idling:
         gcloud compute instances add-metadata INSTANCE-NAME --metadata quit=when-idle
     """
+    def metadata_else_config(attribute, default=None, config_key=None):
+        # type: (str, Any, Optional[str]) -> Any
+        """Put a GCE metadata attribute, or else a keyed `lpad_config` value
+        (`config_key` defaults to `attribute`), or else the default into
+        `lpad_config[config_key]`.
+        Attributes are always strings. They can be absent but they can't be
+        `None` or a number, so treat '' like absent.
+        Config values can be `None` (`null` in YAML) or a number, so let any
+        value override the default.
+        """
+        config_key = config_key or attribute
+        value = (gcp.instance_attribute(attribute)
+                 or lpad_config.get(config_key, default))
+        lpad_config[config_key] = value
+
     exit_code = ERROR_EXIT_CODE
 
     try:
@@ -240,16 +273,11 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
         with open(launchpad_filename) as f:
             lpad_config = yaml.safe_load(f)  # type: dict
 
-        db_name = (gcp.instance_metadata('attributes/db')
-                   or lpad_config.get('name', DEFAULT_FIREWORKS_DATABASE))
-        lpad_config['name'] = db_name
-
-        username = (gcp.instance_metadata('attributes/username')
-                    or lpad_config.get('username'))
-        password = (gcp.instance_metadata('attributes/password')
-                    or lpad_config.get('password'))
-        lpad_config['username'] = username
-        lpad_config['password'] = password
+        metadata_else_config('db', DEFAULT_FIREWORKS_DATABASE, 'name')
+        metadata_else_config('username')
+        metadata_else_config('password')
+        metadata_else_config('idle_for_waiters', DEFAULT_IDLE_FOR_WAITERS)
+        metadata_else_config('idle_for_rockets', DEFAULT_IDLE_FOR_ROCKETS)
 
         redacted_config = dict(lpad_config, password=Redacted())
         FW_LOGGER.warning(

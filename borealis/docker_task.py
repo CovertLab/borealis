@@ -9,7 +9,7 @@ import logging
 import os
 from pprint import pformat
 import shutil
-from threading import Timer
+from threading import Event, Timer
 import time
 from typing import Any, List, Optional
 
@@ -133,7 +133,7 @@ class DockerTask(FiretaskBase):
         self._log().info('Pulling Docker image %s:%s', repository, tag)
         try:
             image = docker_client.images.pull(repository, tag)
-            self._log().info('Pulled Docker image %s', image.id)
+            self._log().debug('Pulled Docker image %s', image.id)
         except requests.ConnectionError as e:
             raise OSError("Couldn't connect to the Docker server. You might"
                           " need to install one or start it. {!r}".format(e))
@@ -263,21 +263,28 @@ class DockerTask(FiretaskBase):
 
         return ok
 
-    def terminate(self, container, reason, terminated):
-        # type: (Container, str, List[bool]) -> None
+    def _terminate(self, container, logger, reason, terminated):
+        # type: (Container, logging.Logger, str, Event) -> None
         """Terminate the Docker Container's process.
+
+        This runs in a Timer thread so be careful about mutable state: Signal
+        that termination happened using an Event object and cope if the
+        Container already stopped. But this relies on thread-safety in Logger
+        and the Docker client.
 
         NOTE: "The KeyboardInterrupt exception will be received by an arbitrary
         thread." -- https://docs.python.org/3.8/library/_thread.html
         """
         name = self['name']
-        logger = self._log()
         logger.info('Terminating task {} for {}...'.format(name, reason))
 
-        container.stop()
-        terminated[0] = True
-
-        logger.warning('Terminated task {} for {}'.format(name, reason))
+        try:
+            container.stop()
+            terminated.set()
+            logger.warning('Terminated task {} for {}'.format(name, reason))
+        except docker_errors.APIError as e:
+            logger.warning("Couldn't terminate task {} for {}: {}".format(
+                name, reason, e))
 
 
     # ODDITIES ABOUT THE PYTHON DOCKER PACKAGE
@@ -365,9 +372,9 @@ class DockerTask(FiretaskBase):
                 detach=True)  # type: Container
 
             try:
-                terminated = [False]
-                args = (container, 'timeout', terminated)
-                timer = Timer(timeout, self.terminate, args=args)
+                terminated = Event()
+                args = (container, logger, 'timeout', terminated)
+                timer = Timer(timeout, self._terminate, args=args)
                 timer.start()
 
                 try:
@@ -383,7 +390,7 @@ class DockerTask(FiretaskBase):
                 elapsed = data.format_duration(end_seconds - start_secs)
                 # -----------------------------------------------------
 
-                check(not terminated[0], 'Cancelled by timeout')
+                check(not terminated.is_set(), 'Cancelled by timeout')
                 check(exit_code == 0, 'Exit code {}{}'.format(
                     exit_code, ' (SIGKILL)' if exit_code == 137 else ''))
                 container.reload()  # query the Docker daemon for current attrs

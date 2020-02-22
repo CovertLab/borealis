@@ -70,7 +70,7 @@ def zone():
 
 
 def instance_metadata(field, default=None):
-    # type: (str, str) -> Optional[str]
+    # type: (str, Optional[str]) -> Optional[str]
     """Get a metadata field like the "name", "zone", or "attributes/db" (for
     custom metadata field "db") of this Google Compute Engine VM instance from
     the GCP metadata server. If it can't contact the Metadata server (not
@@ -90,6 +90,12 @@ def instance_metadata(field, default=None):
         return r.text if r.status_code == 200 else default
     except requests.exceptions.RequestException as e:
         return default
+
+
+def instance_attribute(attribute, default=None):
+    # type: (str, Optional[str]) -> Optional[str]
+    """Return an "attributes/<attribute>" GCE instance metadata field."""
+    return instance_metadata('attributes/' + attribute, default)
 
 
 def gce_instance_name():

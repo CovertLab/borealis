@@ -12,8 +12,8 @@
 
 google-cloud-logging==1.14.0
 google-cloud-storage==1.25.0
-docker==4.1.0
-FireWorks==1.9.5
-requests==2.22.0
-ruamel.yaml==0.16.9
-subprocess32==3.5.4
+docker>=4.1.0
+FireWorks>=1.9.5
+requests>=2.22.0
+ruamel.yaml>=0.16.9
+subprocess32>=3.5.4
