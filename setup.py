@@ -5,9 +5,14 @@ with open('README.md', 'r') as fh:
 
 setup(
     name='borealis-fireworks',
-    version='0.3.3',
+    version='0.4.0',
     packages=['borealis', 'borealis.util'],
     url='https://github.com/CovertLab/borealis',
+    project_urls={
+        'Source': 'https://github.com/CovertLab/borealis',
+        'Documentation': 'https://github.com/CovertLab/borealis#borealis',
+        'Changelog': 'https://github.com/CovertLab/borealis#change-log',
+    },
     license='MIT',
     author='Jerry Morrison',
     author_email='j.erry.morrison@gmail.com',
@@ -42,6 +47,12 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
     keywords='fireworks workflow',
 )

@@ -68,9 +68,18 @@ TODO
 
 # Change Log
 
+## v0.4.0
+* DockerTask:
+  * Implement task timeouts.
+  * Log the elapsed runtime of the container process.
+  * Timestamp the log filename also in the "Pushing outputs to GCS" message and in the local filename (prep for caching output files locally).
+  * Raise an exception if a `>` or `>>` capture path parameter names a directory.
+* Fireworker:
+  * Allow the worker's `my_launchpad.yaml` file to set the `idle_for_waiters` and `idle_for_rockets` parameters. This is good for configuring GCE workers in the Disk Image and off-GCE local workers in the local yaml file.
+  * Add a `quit=soon` feature. `gce.py` can set this metadata attribute to ask Fireworkers to quit gracefully between rockets.
+
 ## v0.3.3
-* Timestamp the captured log files to keep them all from multiple runs and `ls`
-  sorts in time order.
+* Timestamp the captured log files to keep them all from multiple runs and so `ls -l` sorts in time order.
 
 ## v0.3.2 - 2020-02-17
 * Add info to the logs.
