@@ -3,8 +3,8 @@
 
     python -m borealis.fireworker
 
-The borealis-fireworker installs a console_scripts for fireworker and gce, so
-you can simply run
+The borealis-fireworker setup.py installs console_scripts for fireworker and
+gce so with that you can simply run
 
     fireworker
 
@@ -29,8 +29,6 @@ from fireworks.core import rocket_launcher
 import google.cloud.logging as gcl
 from google.cloud.logging.resource import Resource
 import ruamel.yaml as yaml
-
-# import logging_tree
 
 from borealis.util import gcp
 from borealis.util.log_filter import LogPrefixFilter
@@ -147,8 +145,10 @@ class Fireworker(object):
         fw_config.ROCKET_STREAM_LOGLEVEL = self.strm_lvl
 
         self.sleep_secs = 10
-        self.idle_for_waiters = int(lpad_config.pop('idle_for_waiters', DEFAULT_IDLE_FOR_WAITERS))
         self.idle_for_rockets = int(lpad_config.pop('idle_for_rockets', DEFAULT_IDLE_FOR_ROCKETS))
+        self.idle_for_waiters = max(
+            int(lpad_config.pop('idle_for_waiters', DEFAULT_IDLE_FOR_WAITERS)),
+            self.idle_for_rockets)
 
         self.launchpad = LaunchPad(**lpad_config)
         self.launchpad.m_logger.setLevel(self.strm_lvl)  # set non-stream level
@@ -159,19 +159,20 @@ class Fireworker(object):
         self.fireworker = FWorker(host_name)
 
     def launch_rockets(self):
-        # type: () -> None
+        # type: () -> str
         """Keep launching rockets that are ready to go. Stop after:
+          * idling idle_for_rockets secs for any rockets READY to run (default
+            15 minutes),
           * idling idle_for_waiters secs for WAITING rockets to become READY
-            (known tasks are waiting on other tasks),
-          * idling idle_for_rockets secs for existing or new rockets (there's
-            nothing to do yet),
-          * the custom metadata field `attributes/quit` becomes 'when-idle'.
+            (for queued rockets that are waiting on other rockets; default 60
+            minutes; >= idle_for_rockets),
+          * while idling, the custom metadata attribute `quit` got set
+            (gcloud compute instances add-metadata...) to 'soon' or 'when-idle'
+          * between rockets, the custom metadata attribute `quit` got set to
+            'soon'
 
-        The first timeout should be long enough to wait around to run queued
-        rockets after running rockets finish prerequisite work. The second
-        timeout should be long enough to let new work get queued.
+        Returns the stop reason.
         """
-
         # rapidfire() launches READY rockets until: `max_loops` batches of READY
         # rockets OR `timeout` total elapsed seconds OR `nlaunches` rockets launched
         # OR `nlaunches` == 0 ("until completion", the default) AND no rockets are
@@ -185,24 +186,26 @@ class Fireworker(object):
                 self.launchpad, self.fireworker, strm_lvl=self.strm_lvl,
                 max_loops=1, sleep_time=self.sleep_secs)
 
-            # logging_tree.printout()  # *** DEBUG ***
-
             # Idle to the max.
             idled = self.sleep_secs  # rapidfire() just slept once
             while not self.launchpad.run_exists(self.fireworker):  # none ready to run
-                future_work = self.launchpad.future_run_exists(self.fireworker)  # any waiting?
+                future_work = self.launchpad.future_run_exists(self.fireworker)  # any ready or waiting?
                 if idled >= (self.idle_for_waiters if future_work else self.idle_for_rockets):
-                    return
+                    return 'idle'
 
-                if gcp.instance_attribute('quit') == 'when-idle':
-                    FW_LOGGER.info('Quitting by "when-idle" request')
-                    return
+                req = gcp.instance_attribute('quit')
+                if req == 'soon' or req == 'when-idle':
+                    return '"quit={}" request'.format(req)
 
                 FW_CONSOLE_LOGGER.info(
                     'Sleeping for %s secs waiting for launchable rockets',
                     self.sleep_secs)
                 time.sleep(self.sleep_secs)
                 idled += self.sleep_secs
+
+            req = gcp.instance_attribute('quit')
+            if req == 'soon':
+                return '"quit={}" request'.format(req)
 
 
 class Redacted(object):
@@ -222,10 +225,11 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
         attributes/db - DB name (user-specific or workflow-specific)
         attributes/username - DB username
         attributes/password - DB password
+        attributes/idle_for_rockets - idle this many seconds for any rockets
+            READY to run (default 15 minutes)
         attributes/idle_for_waiters - idle this many seconds for WAITING rockets
-            to become READY (known tasks are waiting on other tasks)
-        attributes/idle_for_rockets - idle this many seconds for existing or new
-            rockets (there's nothing to do yet)
+            to become READY (for queued rockets that are waiting on other
+            rockets; default 60 minutes; >= idle_for_rockets)
     else from the launchpad yaml file named by the `launchpad_filename` arg:
         DB host, DB port - for the MongoDB connection
         DB name
@@ -243,8 +247,11 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
     The DB username and password are needed if MongoDB is set up to require
     authentication, and it could use shared or user-specific accounts.
 
-    You can set a custom metadata field to make this worker stop idling:
+    While running, you can set a custom metadata field to make this worker stop
+    idling:
         gcloud compute instances add-metadata INSTANCE-NAME --metadata quit=when-idle
+    or stop as soon as it finishes the current rocket:
+        gcloud compute instances add-metadata INSTANCE-NAME --metadata quit=soon
     """
     def metadata_else_config(attribute, default=None, config_key=None):
         # type: (str, Any, Optional[str]) -> Any
@@ -285,15 +292,14 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
             host_name, redacted_config)
 
         fireworker = Fireworker(lpad_config, host_name)
-        fireworker.launch_rockets()
-
-        FW_LOGGER.warning("Fireworker -- normal exit")
+        stop_reason = fireworker.launch_rockets()
+        FW_LOGGER.warning('Fireworker -- normal exit: {}'.format(stop_reason))
         exit_code = 0
     except KeyboardInterrupt:
         FW_LOGGER.warning('Fireworker -- KeyboardInterrupt exit')
         exit_code = KEYBOARD_INTERRUPT_EXIT_CODE
-    except Exception:
-        FW_LOGGER.exception('Fireworker -- error exit')
+    except Exception as e:
+        FW_LOGGER.exception('Fireworker -- error exit: {}'.format(e))
 
     _cleanup_logging()
     _shut_down(development, exit_code)

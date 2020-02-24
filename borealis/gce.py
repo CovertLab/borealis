@@ -9,9 +9,9 @@ like "{prefix}-0", "{prefix}-1", "{prefix}-2", ...
 # Example: Delete those 3 worker VMs.
     gce --delete grace-wcm -c3 -d
 
-# Example: Set their metadata field `quit` to `when-idle`, asking Fireworkers to
-# shut down when idle.
-    gce grace-wcm -c3 --set -m quit=when-idle
+# Example: Set their metadata field `quit` to `soon`, asking Fireworkers to shut
+# down soon (between rockets).
+    gce grace-wcm -c3 --set -m quit=soon
 """
 
 from __future__ import absolute_import, division, print_function
@@ -241,8 +241,12 @@ def cli():
     group.add_argument('--set-metadata', action='store_const', dest='action',
         const='metadata',
         help='Set metadata on existing VMs instead of creating VMs. E.g. use'
-             ' with `-m quit=when-idle`'
+             ' with `-m quit=soon` or `-m quit=when-idle`'
              ' to ask the specified Fireworkers to shut down gracefully.')
+    group.add_argument('--quit-soon', action='store_const', dest='action',
+        const='quit-soon',
+        help='Shorthand for `--set-metadata -m quit=soon`. Asks VMs to quit'
+             ' soon, assuming they check for this metadata value.')
 
     parser.add_argument('name_prefix', metavar='NAME-PREFIX',
         help='The GCE VM name prefix for constructing a batch of VM names of the'
@@ -293,6 +297,9 @@ def cli():
             lpad_config, ('db', 'username', 'password'), **metadata)
 
     # Cross-check the args.
+    if args.action == 'quit-soon':
+        args.action = 'metadata'
+        metadata['quit'] = 'soon'
     if args.action == 'create':
         if args.family == 'sisyphus-worker':
             assert metadata.get('workflow'), (
