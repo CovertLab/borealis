@@ -3,7 +3,8 @@
 Runs [FireWorks workflows](https://materialsproject.github.io/fireworks/) on
 [Google Compute Engine](https://cloud.google.com/compute/) (GCE).
 
-See the repo [Borealis](https://github.com/CovertLab/borealis).
+See the repo [Borealis](https://github.com/CovertLab/borealis) and the
+PyPI page [borealis-fireworks](https://pypi.org/project/borealis-fireworks/).
 
 * _Borealis_ is the git repo name.
 * _borealis-fireworks_ is the PyPI package name.
@@ -11,34 +12,118 @@ See the repo [Borealis](https://github.com/CovertLab/borealis).
 * _fireworker_ is the recommended process username and home directory name.
 
 
-## Background
+## What is it?
 
-You can launch as many Fireworker nodes as you want as Google Compute Engine (GCE) VM
-instances, and/or run local workers, as long as they can all connect to the LaunchPad
-server running MongoDB. Metadata parameters and the worker's `gce_my_launchpad.yaml`
-file (if that file doesn't exist, then `my_launchpad.yaml`) configure the
-MongoDB host, port, and DB name. Users can have their own DB names on a shared
-MongoDB server, and each user can have multiple DB names -- each an independent
-launchpad space for workflows and their Fireworker nodes.
+[FireWorks](https://materialsproject.github.io/fireworks/) is open-source software
+for defining, managing, and executing workflows. Among the many workflow systems,
+FireWorks is notably straightforward and adaptable. It's also well tested and
+supported.
 
-Workers get Fireworks from the LaunchPad, run them in "rapidfire" mode, and eventually
-time out and shut themselves down.
+_Borealis_ lets you spin up as many temporary worker machines as you want on
+[Google Compute Engine](https://cloud.google.com/compute/) to run a workflow.
+That means pay-per-use and no contention with other workflows.
 
-Workers can run any Firetasks that are loaded on their disk images, but the best fit
-is to run the DockerTask Firetask. DockerTask pulls task input files from
-Google Cloud Storage (GCS), runs a payload task as a shell command within a Docker
-container, and pushes task output files to GCS.
 
-DockerTask parameters include the Docker image to pull, the command shell tokens to
-run in the Docker container, and its input and output files and directories.
+## What's different about running on Google Compute Engine?
 
-DockerTask pulls the inputs from and pushes the outputs to Google Cloud Storage (GCS).
-This avoids needing a shared NFS file service which costs 10x as much as GCS storage
-and doesn't scale as well.
+**TL;DR:** Spin up worker machines when you need them, deploy the task code to
+workers in Docker Images, and use a different kind of shared storage.
 
-Using a Docker image lets you bundle up the payload task with its entire runtime,
-e.g. Python version, pips, Linux apts, and config files. Your workflow can use one or
-more Docker images, and they're isolated from the Fireworker.
+**Worker VMs:** As a _cloud computing_ platform, Google Compute Engine
+(GCE) has a vast number of machines available. You can spin up lots of instances
+(also called Virtual Machines or VMs), run your workflow, change the code, re-run
+some tasks, then let the workers shut down. There's no resource contention with
+other workflows and Google will charge you per usage for GCE.
+
+Borealis provides the `fireworker` Python script to run a worker.
+`fireworker` gets the worker parameters such as which LaunchPad database to use,
+calls the FireWorks library to "rapidfire" launch your FireWorks task ”rockets,”
+and shuts down the server (if it's running on GCE).
+
+The `fireworker` command also runs on a laptop for local runs and easier
+debugging. To do that, you'll have to install the pip and set up cloud access
+control.
+
+You can mix and match GCE FireWorkers with workers running on your local
+computer and elsewhere as long as all the workers can connect to your
+FireWorks “LaunchPad” server (a MongoDB) and your data store.
+
+`fireworker` also sets up Python logging to go to Google "StackDriver" logging
+service (and to the console) so you can watch all your workers running in
+real time.
+
+Borealis provides the `ComputeEngine` class and the command line wrapper `gce`
+to launch a batch of worker VMs, passing in the needed parameters such as the
+connection details for the LaunchPad database. You can generate a workflow
+description (DAG) programmatically and call the FireWorks `LaunchPad.add_wf()`
+method to upload it to the LaunchPad or run the `lpad add` command line to
+upload it. Similarly, you can call the `ComputeEngine.create()` method to
+launch a bunch of worker VMs or use the `gce` command line tool.
+
+`ComputeEngine` and `gce` are also useful for immediately deleting a batch of
+worker VMs or asking them to quit cleanly between Firetasks, although on their
+own they'll shut down after an idle timeout.
+
+`ComputeEngine` and `gce` can also set GCE metadata fields on a batch of
+workers, and this is how the `--quit-soon` feature is implemented.
+
+`fireworker` will run any Firetasks that are available on the worker VMs, but how
+to put your Firetask code on the workers?
+
+**Docker:** You need to deploy your task payload code to all those GCE VMs.
+The payload might be, for example, Python source code but it also needs the right
+runtime environment: Python 2.7 or 3.something, Python pip packages, Linux
+apt packages, compiled C code, data files, and environment variable settings.
+A GCE VM spins up from a “Disk Image” which could have all that preinstalled
+(with or without the Python source code) but it'd be a lot of work to keep it
+up to date and it'd be easy to get into the situation where you can't tell a
+collaborator how to reproduce it.
+
+This is what Docker Images are designed for. You write a `Dockerfile` (or more
+than one) containing repeatable instructions to build your payload Image.
+You can use Google Cloud Build servers to build the Image and store it in the
+Google Container Registry. Images are immutable.
+
+Borealis provides `DockerTask` to run this kind of payload. It's a Firetask that
+pulls a named Docker Image, starts up a Docker Container, runs a given shell
+command in that Container, and shuts down the container. This also isolates the
+payload runtime environment and side effects from the Fireworker and from other
+Firetasks, including tasks running from the same Image.
+
+`DockerTask` logs the Container's stdout + stderr to a file and to Python
+logging (which `fireworker` connects to StackDriver). `DockerTask` also imposes
+a given timeout on the command so it can't loop forever.
+
+To run a Firetask inside the container, include a little Python script `runTask`
+in the container. It takes a Firetask name and a JSON dictionary as shell
+command args, instantiates the Firetask with those arguments, and calls its
+`run_task()` method.
+
+**Google Cloud Storage:** Although you _can_ set up an NFS shared file service for
+the workers’ files, the native storage service is _Google Cloud Storage_ (GCS).
+GCS costs literally 1/10th as much as NFS service and it scales up better. GCS
+lets you archive your files in lower cost tiers designed for infrequent access.
+GCS connects to all the other cloud services. E.g., you could use Pub/Sub to
+trigger an action on a particular upload to GCS.
+
+But Cloud Storage is not a file system. It's an _object store_ with a lighter
+weight protocol to fetch/store/list whole "blobs" (files). It does not support
+simultaneous readers and writers, rather, the last "store" to a blob wins. Blob
+pathnames can contain `/` characters but GCS doesn't have actual directory objects,
+so e.g. there's no way to atomically rename a directory.
+
+`DockerTask` supports Cloud Storage by fetching the task's input files from GCS
+then storing its output files to GCS. This requires you to declare the task's
+inputs and outputs in the `DockerTask` Parameters. (With that information, a
+workflow builder class can compute the task-to-task dependencies.) A pathname
+ending with `/` indicates a whole "directory tree" of files.
+
+When storing the task outputs, `DockerTask` creates little blobs with names
+ending in `/` acting as directory placeholders. This speeds up tree-oriented
+list requests in general. It also means you can run
+[gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse) without the
+`--implicit-dirs` flag, resulting in mounted directories that are much faster
+to access.
 
 
 ## Team Setup
@@ -50,6 +135,16 @@ auth stuff,
 install MongoDB on a GCE VM or set up Google-managed MongoDB,
 create a Fireworker disk image & image family,
 ...
+
+See [borealis/setup/how-to-install-gce-server.txt
+](borealis/setup/how-to-install-gce-server.txt) for detail instructions to set
+up your Compute Engine Disk Image and its "Service Account" for authorization.
+
+xxxxx to connect to the LaunchPad MongoDB server. Metadata parameters and the
+worker's `my_launchpad.yaml` file configure the Fireworker's
+MongoDB host, port, DB name, and idle timeout durations. Users can have their own DB names on a shared
+MongoDB server, and each user can have multiple DB names -- each an independent
+launchpad space for workflows and their Fireworker nodes.
 
 
 ## Individual Developer Setup

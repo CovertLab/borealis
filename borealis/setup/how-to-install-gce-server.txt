@@ -157,10 +157,31 @@ echo The borealis-fireworker `setup` files are in: $SETUP
 cp ${SETUP}/example_my_launchpad.yaml gce_my_launchpad.yaml
 
 ## Configure fireworker's gce_my_launchpad.yaml
-# Edit gce_my_launchpad.yaml with the `host:` and `port:` needed to connect to your
-# MongoDB instance. (The database `name:`, `username:`, and `password:` fields
-# will normally be overridden by metadata attributes sent by the client.)
-# Optionally set a logdir like /home/fireworker/fw/logs for local Fireworks log files.
+#
+# Edit gce_my_launchpad.yaml with the
+#     host:
+#     port:
+# values needed to connect to your MongoDB instance.
+#
+# (The database connection fields
+#     name:
+#     username:
+#     password:
+# will normally be overridden by metadata attributes set when launching the GCE
+# VMs, but you can set them here for a default database.)
+#
+# Optionally add settings like
+#     idle_for_rockets: 900
+#     idle_for_waiters: 3600
+# if you want to adjust how long Fireworker will idle (in seconds) before
+# exiting. Consider making these settings shorter when running Fireworker on your
+# local computer where starting a Fireworker doesn't require launching a GCE VM,
+# or longer when your workflow contains tasks that have to wait longer than 3600
+# seconds for prerequisite tasks.
+#
+# Optionally set
+#     logdir: /home/fireworker/fw/logs
+# for local Fireworks log files.
 nano gce_my_launchpad.yaml
 
 ## Copy the startup.sh script and the service file.

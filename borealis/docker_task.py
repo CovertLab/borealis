@@ -62,7 +62,9 @@ class DockerTask(FiretaskBase):
     -------------------
     name: the payload task name, for logging.
 
-    image: the Docker Image to pull.
+    image: the Docker Image to pull, e.g. 'gcr.io/MY-GCLOUD-PROJECT/MY-CODE'.
+      You can put a ':TAG' on it but keep in mind that ':latest' has nothing to
+      do with time. It's merely the default Docker tag name.
 
     command: the shell command tokens to run in the Docker Container.
 
@@ -178,8 +180,9 @@ class DockerTask(FiretaskBase):
         if caps:
             sub_dir, filename = os.path.split(internal_path)
             if not filename:
-                raise ValueError('Capture path must not name a directory: "{}"'
-                                 .format(internal_path))
+                raise ValueError(
+                    'A capture path must name a file, not a directory: "{}"'
+                        .format(internal_path))
             if caps == '>>':
                 filename = '{}_{}'.format(data.timestamp(), filename)
                 internal_path = os.path.join(sub_dir, filename)
