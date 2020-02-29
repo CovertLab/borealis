@@ -11,7 +11,7 @@ setup(
     project_urls={
         'Source': 'https://github.com/CovertLab/borealis',
         'Documentation': 'https://github.com/CovertLab/borealis#borealis',
-        'Changelog': 'https://github.com/CovertLab/borealis#change-log',
+        'Changelog': 'https://github.com/CovertLab/borealis/docs/changes.md',
     },
     license='MIT',
     author='Jerry Morrison',
