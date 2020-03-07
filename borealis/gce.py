@@ -3,11 +3,14 @@
 like "{prefix}-0", "{prefix}-1", "{prefix}-2", ...
 
 # Example: Create worker VMs grace-wcm-0, grace-wcm-1, grace-wcm-2 with metadata
-# db=analysis so those workers will use the named database.
+# db=analysis so those workers will use the database named "analysis".
     gce grace-wcm -c3 -m db=analysis
 
+# Example: A dry run of that command to see all the options and metadata fields.
+    gce grace-wcm -c3 -m db=analysis -d
+
 # Example: Delete those 3 worker VMs.
-    gce --delete grace-wcm -c3 -d
+    gce --delete grace-wcm -c3
 
 # Example: Set their metadata field `quit` to `soon`, asking Fireworkers to shut
 # down soon (between rockets).
@@ -70,6 +73,15 @@ def _options_list(options):
             for k, v in options.items()]
 
 
+def _parse_options(csv):
+    # type: (Optional[str]) -> Dict[str, str]
+    """Parse the comma-separated KEY=VALUE option strings into a dict."""
+    assignments = (csv or '').split(',')
+    pairs = [a.split('=', 2) + [''] for a in assignments]
+    options = {p[0].strip(): p[1].strip() for p in pairs if p[0].strip()}
+    return options
+
+
 class ComputeEngine(object):
     """Runs `gcloud compute` to create, delete, or change a group of GCE VM
     instances named "{prefix}-{index}".
@@ -111,8 +123,7 @@ class ComputeEngine(object):
         """In parallel, create a group of GCE VM instances.
 
         This provides default command options to `gcloud compute instances create`.
-        The caller should at least set the `image-family` option and override
-        default options as needed.
+        The caller should at least set the `image-family` option.
 
         This converts `command_options` and `metadata` to strings, stripping any
         ',' and '=' characters from the metadata fields, then passes tokens to
@@ -232,7 +243,7 @@ def cli():
     parser = argparse.ArgumentParser(
         description='''Create, delete, or set metadata on a group of Google
             Compute Engine VMs, e.g. workflow workers that start up from a disk
-            image. (This code also has an API for direct use.)''')
+            image-family. (This code also has an API for direct use.)''')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--delete', action='store_const', dest='action',
@@ -246,78 +257,75 @@ def cli():
     group.add_argument('--quit-soon', action='store_const', dest='action',
         const='quit-soon',
         help='Shorthand for `--set-metadata -m quit=soon`. Asks VMs to quit'
-             ' soon, assuming they check for this metadata value.')
+             ' soon, assuming they check this metadata field.')
 
     parser.add_argument('name_prefix', metavar='NAME-PREFIX',
         help='The GCE VM name prefix for constructing a batch of VM names of the'
-             ' form {PREFIX}-{NUMBER}.')
+             ' form {NAME-PREFIX}-{NUMBER}.')
     parser.add_argument('-d', '--dry-run', action='store_true', dest='dry_run',
-        help='Dry run: Print the constructed gcloud commands and exit.')
+        help='Dry run: Print the constructed gcloud command and exit.')
     parser.add_argument('-b', '--base', type=int, default=0,
-        help='The base number for the VM name suffixes (default=0). This is'
-             ' mainly for creating additional VMs since they need unique names.')
+        help='The base NUMBER for the VM name suffixes (default=0). This lets'
+             ' you create additional VMs with unique names.')
     parser.add_argument('-c', '--count', type=int, default=1,
         help='The number of VMs to create/delete/set (default=1).')
     parser.add_argument('-f', '--family', default='fireworker',
-        help='The GCE Disk Image Family to create from (default="fireworker").'
-             ' (With "fireworker", be'
-             ' sure to set `-m db=MY_DATABASE_NAME`. With "sisyphus-worker", be'
-             ' sure to set `-m workflow=MY_WORKFLOW_NAME`.)')
+        help='The GCE Disk image-family to create VMs from (default="fireworker").'
+             ' (For "fireworker", be sure to also set the `db` metadata field'
+             ' or read a LaunchPad file that has a `name` field.)')
     parser.add_argument('-l', dest='launchpad_filename',
         default=DEFAULT_LPAD_YAML,
-        help='LaunchPad config YAML filename to get the db name, username,'
+        help='LaunchPad config YAML filename to read the db name, username,'
              ' and password metadata when creating VMs (default="{}"). This'
              ' will create GCE VMs which connect to that LaunchPad db.'
-             ' Use `-l ""` to skip this config file if you want to do it all'
-             ' via `-m key=value` options.'.format(
-            DEFAULT_LPAD_YAML))
-    parser.add_argument('-m', '--metadata', metavar='KEY=VALUE',
-        action='append', default=[],
-        help='A GCE metadata "key=value" setting for when creating VMs or'
-             ' setting VMs’ metadata, e.g. "db=analyze" to'
-             ' point FireWorks workers to the named database. You can use'
-             ' this option zero or more times. It overrides LaunchPad config'
-             ' fields.')
-    parser.add_argument('-s', '--service-account', dest='service_account',
-        help='The service account identity to attach when creating VMs, e.g.'
-             ' "999999999999-compute@developer.gserviceaccount.com".')
+             ' Use `-l ""` to skip this config file.'.format(DEFAULT_LPAD_YAML))
+    parser.add_argument('-m', '--metadata', metavar='METADATA_KEY=VALUE,...',
+        help='Comma-separated GCE metadata "KEY=VALUE" settings for creating VMs'
+             ' or setting their metadata, e.g. "db=analyze" to point FireWorks'
+             ' workers to the database named `analyze`. These settings override'
+             ' fields read from a LaunchPad config file.')
+    parser.add_argument('-o', '--options', metavar='OPTION_KEY=VALUE,...',
+            help='Comma-separated "KEY=VALUE" options to pass to'
+                 ' `gcloud compute instances create`, e.g. "boot-disk-size",'
+                 ' "custom-cpu", "custom-memory", "machine-type", "scopes",'
+                 ' "service-account". These options override default options'
+                 ' and the --family argument. Options like `project` default to'
+                 ' your current gcloud configuration.')
 
     args = parser.parse_args()
-
-    # TODO(jerry): Allow multiple pairs per option "-m k1=v1,k2=v2"? Raise an
-    #  exception for illegal chars rather than quietly remove them?
-    unpacked = [e.split('=', 2) + [''] for e in args.metadata]
-    metadata = {e[0]: e[1] for e in unpacked}
+    metadata = {}
 
     if args.launchpad_filename and args.action == 'create':
         with open(args.launchpad_filename) as f:
             lpad_config = yaml.safe_load(f)  # type: dict
             lpad_config['db'] = lpad_config.get('name')
-        metadata = data.select_keys(
-            lpad_config, ('db', 'username', 'password'), **metadata)
+        metadata = data.select_keys(lpad_config, ('db', 'username', 'password'))
 
-    # Cross-check the args.
+    metadata.update(_parse_options(args.metadata))
+    options = {}
+    if args.action == 'create':
+        if args.family:
+            options['image-family'] = args.family
+            options['description'] = args.family + ' worker'
+        options.update(_parse_options(args.options))
+
     if args.action == 'quit-soon':
         args.action = 'metadata'
         metadata['quit'] = 'soon'
+
+    # Cross-check the args.
     if args.action == 'create':
-        if args.family == 'sisyphus-worker':
-            assert metadata.get('workflow'), (
-                'need `-m workflow=MY_WORKFLOW_NAME` to create sisyphus workers')
+        assert options.get('image-family'), (
+            'need an image-family option to create workers')
         if args.family == 'fireworker':
             assert metadata.get('db'), (
-                'need `-m db=MY_DATABASE_NAME` to create Fireworkers')
+                'need a `db` metadata setting to create Fireworkers')
     elif args.action == 'metadata':
         assert metadata, 'need some metadata to set'
 
     compute_engine = ComputeEngine(args.name_prefix, dry_run=args.dry_run)
 
     if args.action == 'create':
-        options = {
-            'image-family': args.family,
-            'description': args.family + ' worker'}
-        if args.service_account:
-            options['service-account'] = args.service_account
         compute_engine.create(args.base, args.count, command_options=options,
                               **metadata)
     elif args.action == 'delete':
