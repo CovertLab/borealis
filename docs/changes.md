@@ -1,5 +1,10 @@
 # Change Log
 
+## v0.5.0
+* Improved documentation.
+* gce.py: More flexible `--metadata` and `--options` CLI args.
+* storage.py: Faster directory placeholder creation using the new `if_generation_match=0` API feature.
+
 ## v0.4.0
 * DockerTask:
   * Implement task timeouts.

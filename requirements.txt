@@ -10,8 +10,8 @@
 #   pip install -r requirements.txt
 #   pyenv rehash
 
-google-cloud-logging>=1.14.0
-google-cloud-storage>=1.26.0
+google-cloud-logging>=1.15.0
+google-cloud-storage>=1.28.0
 docker>=4.2.0
 FireWorks>=1.9.5
 requests>=2.23.0

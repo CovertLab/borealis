@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setup(
     name='borealis-fireworks',
-    version='0.4.0',
+    version='0.5.0',
     packages=['borealis', 'borealis.util'],
     url='https://github.com/CovertLab/borealis',
     project_urls={
@@ -22,7 +22,7 @@ setup(
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
     install_requires=[
         'google-cloud-logging>=1.14.0',
-        'google-cloud-storage>=1.25.0',
+        'google-cloud-storage>=1.28.0',
         'docker>=4.1.0',
         'FireWorks>=1.9.5',
         'requests>=2.22.0',

@@ -4,10 +4,10 @@ from __future__ import absolute_import, division, print_function
 
 import logging
 import os
-from typing import Iterator, List, Optional, Union, Set
+from typing import Iterator, List, Optional, Set
 
-from google.cloud.storage import Blob, Bucket, Client
-from google.cloud.exceptions import GoogleCloudError
+from google.cloud.storage import Blob, Client
+from google.cloud.exceptions import GoogleCloudError, PreconditionFailed
 
 import borealis.util.filepath as fp
 
@@ -76,7 +76,7 @@ class CloudStorage(object):
     FIELDS = 'items(bucket,name,id,generation,size),nextPageToken'
 
     def __init__(self, storage_prefix):
-        # type: (Union[Bucket, str]) -> None
+        # type: (str) -> None
         """Construct a GCS accessor with the given storage_prefix, which must
         name a GCS bucket and optionally a base path, e.g.
         'curie-workflows/sim/2020-02-02/'. (It should end with a '/' but will
@@ -133,13 +133,12 @@ class CloudStorage(object):
                 self._directory_cache.add(dir_name)
 
                 blob = self.bucket.blob(dir_name)
-                # TODO(jerry): If upload_from_string() took the
-                #  `ifGenerationMatch=0` arg that'd create the GCS object if it
-                #  doesn't already exist, saving the `exists()` round trip.
-                # https://github.com/googleapis/google-cloud-python/issues/10105
                 try:
-                    if not blob.exists():
-                        blob.upload_from_string(b'', content_type=OCTET_STREAM)
+                    # if_generation_match=0: upload if absent, fail if present.
+                    blob.upload_from_string(
+                        b'', content_type=OCTET_STREAM, if_generation_match=0)
+                except PreconditionFailed as e:  # the blob is already present
+                    pass
                 except GoogleCloudError as e:
                     # Failing to create a dir placeholder will affect gcsfuse
                     # mounts but won't break the workflow.
