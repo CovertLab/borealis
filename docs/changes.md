@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.5.1
+* Fix the `setup.py` link to `changes.md`.
+* Documentation progress.
+
 ## v0.5.0
 * Improved documentation.
 * gce.py: More flexible `--metadata` and `--options` CLI args.

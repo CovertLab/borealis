@@ -5,13 +5,13 @@ with open('README.md', 'r') as fh:
 
 setup(
     name='borealis-fireworks',
-    version='0.5.0',
+    version='0.5.1',
     packages=['borealis', 'borealis.util'],
     url='https://github.com/CovertLab/borealis',
     project_urls={
         'Source': 'https://github.com/CovertLab/borealis',
         'Documentation': 'https://github.com/CovertLab/borealis#borealis',
-        'Changelog': 'https://github.com/CovertLab/borealis/docs/changes.md',
+        'Changelog': 'https://github.com/CovertLab/borealis/blob/master/docs/changes.md',
     },
     license='MIT',
     author='Jerry Morrison',
