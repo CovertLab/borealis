@@ -27,7 +27,11 @@ import borealis.util.storage as st
 
 
 class DockerTaskError(Exception):
-    pass
+    def to_dict(self):
+        """Return the exception details to the Rocket launcher to save in the
+        Launchpad record's `_details`.
+        """
+        return dict(args=self.args, type=type(self).__name__)
 
 
 PathMapping = namedtuple('PathMapping', 'captures local_prefix local sub_path mount')
@@ -137,8 +141,9 @@ class DockerTask(FiretaskBase):
             image = docker_client.images.pull(repository, tag)
             self._log().debug('Pulled Docker image %s', image.id)
         except requests.ConnectionError as e:
-            raise OSError("Couldn't connect to the Docker server. You might"
-                          " need to install one or start it. {!r}".format(e))
+            raise DockerTaskError(
+                "Couldn't connect to the Docker server. You might need to"
+                " install one or start it. {!r}".format(e))
         return image
 
     def rebase(self, internal_path, new_prefix):
@@ -161,7 +166,8 @@ class DockerTask(FiretaskBase):
         if '..' in new_path:
             # This could happen if `internal_path` doesn't start with
             # `internal_prefix`.
-            raise ValueError('Rebased path "{}" contains ".."'.format(new_path))
+            raise DockerTaskError(
+                'Rebased storage path "{}" contains ".."'.format(new_path))
         return new_path
 
     def setup_mount(self, internal_path, local_prefix):
@@ -180,8 +186,8 @@ class DockerTask(FiretaskBase):
         if caps:
             sub_dir, filename = os.path.split(internal_path)
             if not filename:
-                raise ValueError(
-                    'A capture path must name a file, not a directory: "{}"'
+                raise DockerTaskError(
+                    'A stdout capture path must name a file, not a directory: "{}"'
                         .format(internal_path))
             if caps == '>>':
                 filename = '{}_{}'.format(data.timestamp(), filename)
@@ -228,7 +234,7 @@ class DockerTask(FiretaskBase):
 
                         if hr:
                             f.write('{}\n\n{}\n'.format(hr, epilogue))
-                except IOError as e:
+                except IOError as _:
                     self._log().exception('Error capturing to %s', out.local)
 
             if success or out.captures == '>>':
@@ -403,7 +409,7 @@ class DockerTask(FiretaskBase):
             finally:
                 try:
                     container.remove(force=True)
-                except docker_errors.APIError as e:  # troubling but not a task error
+                except docker_errors.APIError as _:  # troubling but not a task error
                     logger.exception('Docker error removing a container')
 
             to_push = self._outputs_to_push(
