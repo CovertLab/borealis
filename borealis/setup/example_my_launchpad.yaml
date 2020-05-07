@@ -1,4 +1,11 @@
-# Example launchpad config. Be sure to set the MongoDB host and port.
+# Example launchpad config.
+#
+# If you use an ssh tunnel to connect to the MongoDB server (see
+# example_mongo_ssh.sh), set the host and port to suit the ssh tunnel source,
+# e.g. `host: localhost` (or 127.0.0.1) and `port: 27017`, and further if you're
+# relying on ssh access control rather than MongoDB access control, set the
+# `username` and `password` to `null`. If instead you can connnect directly to
+# MongoDB, set its actual `host`, `port`, `username`, and `password` here.
 host: localhost
 port: 27017
 username: null

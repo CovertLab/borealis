@@ -1,7 +1,9 @@
 # Change Log
 
-## v0.6.0
-* Get exception info to the Rocket launcher to the Launchpad record.
+## v0.6.0, v0.6.1
+* Clarify DockerTask exception messages.
+* Add `example_mongo_ssh.sh`.
+* More documentation progress.
 
 ## v0.5.1
 * Fix the `setup.py` link to `changes.md`.

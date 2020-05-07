@@ -149,7 +149,7 @@ class CloudStorage(object):
         """Upload the file named local_path as (not into) the given GCS sub_path
         (which is relative to the storage_prefix).
 
-        Return True if successful.
+        Return True if successful. Logs exceptions.
         """
         full_path = os.path.join(self.path_prefix, sub_path)
 
@@ -169,7 +169,7 @@ class CloudStorage(object):
         """Upload a file or a directory tree as (not into) the given GCS
         sub_path (which is relative to the storage_prefix).
 
-        Return True if successful.
+        Return True if successful. Logs exceptions.
         """
         if not names_a_directory(sub_path):
             return self.upload_file(local_path, sub_path)
@@ -196,7 +196,7 @@ class CloudStorage(object):
         """Download a Blob from GCS as (not into) local_path, making directories
         if needed. `blob` must have its `name` and `bucket` fields set.
 
-        Return True if successful.
+        Return True if successful. Logs exceptions.
         """
         if names_a_directory(local_path):
             fp.makedirs(local_path)
@@ -218,7 +218,7 @@ class CloudStorage(object):
         """Download the GCS file named sub_path (relative to the storage_prefix)
         as (not into) the local_path, making local directories if needed.
 
-        Return True if successful.
+        Return True if successful. Logs exceptions.
         """
         full_path = os.path.join(self.path_prefix, sub_path)
         blob = self.bucket.blob(full_path)
@@ -230,7 +230,7 @@ class CloudStorage(object):
         prefix (within the storage_prefix) to their same relative paths in
         local_prefix, making directories if needed.
 
-        Return True if successful.
+        Return True if successful. Logs exceptions.
         """
         if not names_a_directory(sub_path):
             local_path = os.path.join(local_prefix, sub_path)

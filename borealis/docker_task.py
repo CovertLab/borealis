@@ -27,11 +27,8 @@ import borealis.util.storage as st
 
 
 class DockerTaskError(Exception):
-    def to_dict(self):
-        """Return the exception details to the Rocket launcher to save in the
-        Launchpad record's `_details`.
-        """
-        return dict(args=self.args, type=type(self).__name__)
+    """An error in DockerTask setup, cleanup, or running the Docker payload."""
+    pass
 
 
 PathMapping = namedtuple('PathMapping', 'captures local_prefix local sub_path mount')
@@ -167,7 +164,7 @@ class DockerTask(FiretaskBase):
             # This could happen if `internal_path` doesn't start with
             # `internal_prefix`.
             raise DockerTaskError(
-                'Rebased storage path "{}" contains ".."'.format(new_path))
+                'Rebased storage I/O path "{}" contains ".."'.format(new_path))
         return new_path
 
     def setup_mount(self, internal_path, local_prefix):
@@ -367,7 +364,7 @@ class DockerTask(FiretaskBase):
             ins = self.setup_mounts('inputs')
             outs = self.setup_mounts('outputs')
 
-            check(self.pull_from_gcs(ins), 'Failed to pull inputs')
+            check(self.pull_from_gcs(ins), 'Failed to fetch inputs from GCS')
 
             # -----------------------------------------------------
             logger.info('Running: %s', self['command'])
@@ -399,27 +396,27 @@ class DockerTask(FiretaskBase):
                 elapsed = data.format_duration(end_seconds - start_secs)
                 # -----------------------------------------------------
 
-                check(not terminated.is_set(), 'Cancelled by timeout')
-                check(exit_code == 0, 'Exit code {}{}'.format(
+                check(not terminated.is_set(), 'Docker process timeout')
+                check(exit_code == 0, 'Docker process exit code {}{}'.format(
                     exit_code, ' (SIGKILL)' if exit_code == 137 else ''))
                 container.reload()  # query the Docker daemon for current attrs
                 state = container.attrs.get('State')
                 if isinstance(state, dict):
-                    check(not state.get('OOMKilled'), 'OOM-Killed')
+                    check(not state.get('OOMKilled'),
+                          'The Docker process ran out of memory (OOMKilled)')
             finally:
                 try:
                     container.remove(force=True)
                 except docker_errors.APIError as _:  # troubling but not a task error
-                    logger.exception('Docker error removing a container')
+                    logger.exception('Error removing the Docker Container')
 
             to_push = self._outputs_to_push(
                 lines, not errors, outs, prologue(), epilogue())
 
             # NOTE: The >>task.log file won't report push failures since it's
             # written before pushing and might itself fail to push. But the
-            # StackDriver log will get it, and the Fireworks stored_data will
-            # get it if this returns FWAction rather than raise an exception.
-            check(self.push_to_gcs(to_push), 'Failed to push outputs')
+            # StackDriver log will get it.
+            check(self.push_to_gcs(to_push), 'Failed to store outputs to GCS')
 
         except (Exception, KeyboardInterrupt) as e:
             # Log it, clean up, and re-raise it. That'll FIZZLE the Firework.
@@ -434,6 +431,6 @@ class DockerTask(FiretaskBase):
             shutil.rmtree(wipe_out, ignore_errors=True)
 
         if errors:
-            raise DockerTaskError(repr(errors))  # FIZZLE this Firework
+            raise DockerTaskError(repr(errors))  # FIZZLE this Firework.
 
         return None
