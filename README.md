@@ -14,9 +14,10 @@ PyPI page [borealis-fireworks](https://pypi.org/project/borealis-fireworks/).
 
 ## What is it?
 
-**[FireWorks](https://materialsproject.github.io/fireworks/)** is open-source
-software for defining, managing, and executing workflows. Among the many
-workflow systems, FireWorks is exceptionally straightforward, lightweight, and
+**[FireWorks](https://materialsproject.github.io/fireworks/)** is an open-source
+workflow management system, that is, it drives interdependent computing tasks.
+Among the many workflow systems available,
+FireWorks is exceptionally straightforward, lightweight, and
 adaptable. It's well tested and supported. The only shared services it needs are
 a MongoDB server (acting as the workflow "LaunchPad") and a file store.
 
@@ -30,6 +31,8 @@ workflow. That means pay-per-use and no contention between workflows.
 **TL;DR:** Spin up worker machines when you need them, deploy your task code to
 the workers in Docker Images, and store the data in Google Cloud Storage instead
 of NFS.
+
+![Diagram of Borealis Fireworks on Google Cloud Platform](docs/Borealis-Fireworks-on-Google-Cloud.png)
 
 
 **Worker VMs:** As a _cloud computing_ platform, [Google Compute
@@ -85,17 +88,11 @@ so e.g. there's no way to atomically rename a directory.
 `DockerTask` supports Cloud Storage by fetching the task's input files from GCS
 and storing its output files to GCS.
 
-You can access your GCS files via the
-[gsutil](https://cloud.google.com/storage/docs/gsutil) command line tool, the
-[gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse) mounting tool, and the
-[Storage Browser](https://console.cloud.google.com/storage/browser) in the
-[Google Cloud Platform web console](https://console.cloud.google.com/home/dashboard).
-
 
 **Logging:** `DockerTask` logs the Container's stdout and stderr, and
 `fireworker` sets up Python logging to write to Google's
-**StackDriver** logging service so you can watch all your workers running in real
-time.
+**StackDriver** cloud logging service so you can watch your workers running
+in real time.
 
 
 **Projects:** With Google Cloud Platform, you set up a _project_ for your team
@@ -130,6 +127,16 @@ running lots of tasks in parallel).
    You can run the Python script `gce` to launch a batch of workers, or
 automate it by calling its `ComputeEngine` class from your workflow builder.
 
+1. Watch the
+[**StackDriver** cloud logs](https://console.cloud.google.com/logs/query)
+while your workers run and afterwards.
+
+1. Access your output files in GCS via the
+[gsutil](https://cloud.google.com/storage/docs/gsutil) command line tool, the
+[gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse) mounting tool, and the
+[Storage Browser](https://console.cloud.google.com/storage/browser) in the
+[Google Cloud Platform web console](https://console.cloud.google.com/home/dashboard).
+
 
 ## More detail on the Borealis components
 
@@ -141,7 +148,8 @@ After you generate a workflow, call FireWorks' `LaunchPad.add_wf()`
 (or run FireWorks' `lpad add` command line tool) to upload it to the
 LaunchPad. Then call `ComputeEngine.create()` (or the `gce` command line)
 to spin up a batch of worker VMs to run the workflow.
-This passes in parameters including the LaunchPad `host` and `name`.
+This uses GCE metadata fields to pass in parameters including the
+LaunchPad db name and username.
 
 `ComputeEngine` and `gce` can also immediately delete a batch of worker
 VMs or ask them to quit cleanly between Firetasks, although the workers will
@@ -180,11 +188,11 @@ instantiate the Firetask with those arguments, and call the Firetask's
 `run_task()` method.
 
 `DockerTask` supports Google Cloud Storage (GCS) by fetching the task's input
-files from GCS, mapping it into the Docker Container, running the task, and
-storing its
-output files to GCS. This requires you to declare the input and output paths.
-(A workflow builder can use these declarations to compute the task
-interdependencies that FireWorks needs.)
+files from GCS, mapping them into the Docker Container, running the task, and
+storing its output files to GCS. This means you'll need to specify the input
+and output paths as `DockerTask` arguments.
+(Your workflow builder code could use this path information to compute the
+task-to-task interdependencies for FireWorks.)
 
 For each path you specify in DockerTask's `inputs` and `outputs`,
 it denotes a directory tree of files iff it ends with a `/`.
