@@ -1,6 +1,6 @@
 # Developer Setup
 
-After someone does the [Team Setup](/team-setup.md) steps, each developer can do the
+After someone does the [Team Setup](team-setup.md) steps, each developer can do the
 following steps to set up to run FireWorks workflows on Google Cloud Platform.
 
 Also see [Handy Links](handy-links.md).
@@ -9,7 +9,7 @@ Also see [Handy Links](handy-links.md).
 ## Steps
 
 1. Have the team setup administrator add your account to the project
-or do the [Team Setup](/team-setup.md) steps and create the project.
+or do the [Team Setup](team-setup.md) steps and create the project.
 
 1. [Install the dev tools](install-tools.md).
 

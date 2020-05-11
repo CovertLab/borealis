@@ -212,7 +212,7 @@ logging (which `fireworker` connects to **StackDriver**).
 
 ## What's next?
 
-See the [Team Setup](/team-setup.md) steps and
-the [Developer Setup](developer-setup.md) steps.
+See the [Team Setup](docs/team-setup.md) steps and
+the [Developer Setup](docs/developer-setup.md) steps.
 
-Also see [Handy Links](handy-links.md).
+Also see [Handy Links](docs/handy-links.md).
