@@ -1,4 +1,4 @@
-# Install the dev tools
+# Install the development tools
 
 Also see [Handy Links](handy-links.md).
 

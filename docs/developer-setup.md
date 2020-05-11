@@ -11,7 +11,7 @@ Also see [Handy Links](handy-links.md).
 1. Have the team setup administrator add your account to the project
 or do the [Team Setup](team-setup.md) steps and create the project.
 
-1. [Install the dev tools](install-tools.md).
+1. [Install the development tools](install-tools.md).
 
 1. Use the [Storage Browser](https://console.cloud.google.com/storage/browser) or
 the `gsutil` command line tool to create your storage bucket.

@@ -30,7 +30,7 @@ Compute Engine VMs and your Cloud Storage buckets.
 This choice impacts service prices, network latency, and available services.
 See [Cloud Billing](https://cloud.google.com/billing/docs).
 
-1. Follow the [Install the dev tools](install-tools.md) page to install, log in
+1. Follow the [Install the development tools](install-tools.md) page to install, log in
 to the `gcloud` command line tool, and configure your default project and zone.
 
 1. Create a Google Compute Engine VM instance

@@ -30,8 +30,8 @@
     **a GCP project** with **billing enabled**. The project does not need to be part
     of an organization.
 
-  * [Google Cloud SDK documentation](https://cloud.google.com/sdk/docs) -- dev tools
-  including the `gcloud` and `gsutil` command line tools
+  * [Google Cloud SDK documentation](https://cloud.google.com/sdk/docs) -- development
+  tools including the `gcloud` and `gsutil` command line tools
     * [gcloud command line reference](https://cloud.google.com/sdk/gcloud/reference)
     * [Google Cloud Client Libraries](https://cloud.google.com/sdk/cloud-client-libraries)
 
