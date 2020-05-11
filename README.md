@@ -1,15 +1,10 @@
 # Borealis
 
 Runs [FireWorks workflows](https://materialsproject.github.io/fireworks/) on
-[Google Compute Engine](https://cloud.google.com/compute/) (GCE).
+[Google Cloud Platform computing services](https://cloud.google.com/) (GCP).
 
 See the repo [Borealis](https://github.com/CovertLab/borealis) and the
 PyPI page [borealis-fireworks](https://pypi.org/project/borealis-fireworks/).
-
-* _Borealis_ is the git repo name.
-* _borealis-fireworks_ is the PyPI package name.
-* _borealis-fireworker.service_ is the name of the systemd service.
-* _fireworker_ is the recommended process username and home directory name.
 
 
 ## What is it?
@@ -34,6 +29,9 @@ of NFS.
 
 ![Diagram of Borealis Fireworks on Google Cloud Platform](docs/Borealis-Fireworks-on-Google-Cloud.png)
 
+Figure 1. Blue hexagons represent Google Cloud Platform services.
+The LaunchPad is shown in a blue hexagon because it's implemented as a
+MongoDB server that you can run on Compute Engine.
 
 **Worker VMs:** As a _cloud computing_ platform, [Google Compute
 Engine](https://cloud.google.com/compute/) (GCE) has a vast number of machines
@@ -113,8 +111,10 @@ You can do this manually by writing a `.yaml` file and running the `lpad`
 command line tool, or automate it as a workflow builder that calls FireWorks
 APIs to construct a `Workflow` object and upload it.
 
-   The workflow will run instances of the `DockerTask` Firetask.
-   
+   The workflow will run instances of the `DockerTask` Firetask. Of course
+it can run other Firetasks as well; they just won't get deployment,
+storage, logging, and timeout features from `DockerTask`.
+
    If you need to open a secure ssh tunnel to the MongoDB server running in
 a Google Compute Engine VM, use the `borealis/setup/example_mongo_ssh.sh`
 shell script.
@@ -124,16 +124,16 @@ You can run the `fireworker` Python script locally (which is handy for
 debugging) or launch Compute Engine VMs that run `fireworker` (handy for
 running lots of tasks in parallel).
 
-   You can run the Python script `gce` to launch a batch of workers, or
+   You can run the Python script `gce` to launch a group of workers, or
 automate it by calling its `ComputeEngine` class from your workflow builder.
 
 1. Watch the
 [**StackDriver** cloud logs](https://console.cloud.google.com/logs/query)
-while your workers run and afterwards.
+of your workers running.
 
-1. Access your output files in GCS via the
+1. Access the output files in GCS via the
 [gsutil](https://cloud.google.com/storage/docs/gsutil) command line tool, the
-[gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse) mounting tool, and the
+[gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse) file mounting tool, and the
 [Storage Browser](https://console.cloud.google.com/storage/browser) in the
 [Google Cloud Platform web console](https://console.cloud.google.com/home/dashboard).
 
@@ -147,15 +147,15 @@ create, tweak, and delete a group of worker VMs.
 After you generate a workflow, call FireWorks' `LaunchPad.add_wf()`
 (or run FireWorks' `lpad add` command line tool) to upload it to the
 LaunchPad. Then call `ComputeEngine.create()` (or the `gce` command line)
-to spin up a batch of worker VMs to run the workflow.
+to spin up a group of worker VMs to run the workflow.
 This uses GCE metadata fields to pass in parameters including the
 LaunchPad db name and username.
 
-`ComputeEngine` and `gce` can also immediately delete a batch of worker
+`ComputeEngine` and `gce` can also immediately delete a group of worker
 VMs or ask them to quit cleanly between Firetasks, although the workers will
 shut down on their own after an idle timeout.
 
-`ComputeEngine` and `gce` can also set GCE metadata fields on a batch of
+`ComputeEngine` and `gce` can also set GCE metadata fields on a group of
 workers. This is used to implement the `--quit-soon` feature.
 
 
@@ -194,8 +194,8 @@ and output paths as `DockerTask` arguments.
 (Your workflow builder code could use this path information to compute the
 task-to-task interdependencies for FireWorks.)
 
-For each path you specify in DockerTask's `inputs` and `outputs`,
-it denotes a directory tree of files iff it ends with a `/`.
+Each path you specify in DockerTask's `inputs` and `outputs`
+denotes a directory tree of files iff it ends with a `/`.
 
 When storing task output files, `DockerTask` creates blobs with names ending in
 `/` to act as "directory placeholders" to speed up tree-oriented traversal.
@@ -210,36 +210,9 @@ container.
 logging (which `fireworker` connects to **StackDriver**).
 
 
-## Team Setup
+## What's next?
 
-TODO:
-Install & configure dev tools,
-create a GCP project,
-auth stuff,
-install MongoDB on a GCE VM or set up Google-managed MongoDB,
-create a Fireworker disk image & image family,
-...
+See the [Team Setup](/team-setup.md) steps and
+the [Developer Setup](developer-setup.md) steps.
 
-See [borealis/setup/how-to-install-gce-server.txt
-](borealis/setup/how-to-install-gce-server.txt) for detail instructions to set
-up your Compute Engine Disk Image and its "Service Account" for authorization.
-
-xxxxx to connect to the LaunchPad MongoDB server. Metadata parameters and the
-worker's `my_launchpad.yaml` file configure the Fireworker's
-MongoDB host, port, DB name, and idle timeout durations. Users can have their own DB names on a shared
-MongoDB server, and each user can have multiple DB names -- each an independent
-launchpad space for workflows and their Fireworker nodes.
-
-
-## Individual Developer Setup
-
-TODO:
-Install & configure dev tools,
-make a storage bucket with a globally-unique name,
-build a Docker image to run,
-...
-
-
-## Run
-
-TODO
+Also see [Handy Links](handy-links.md).
