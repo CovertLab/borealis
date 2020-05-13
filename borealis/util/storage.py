@@ -58,6 +58,7 @@ class CloudStorage(object):
     To run on Google Compute Engine (GCE), the VM needs access Scopes:
         Storage Read Write (storage-rw)
     and its Service Account needs Permissions:
+        Logs Writer
         Storage Object Admin
 
     To run off GCE, configure a service account "fireworker" with the above

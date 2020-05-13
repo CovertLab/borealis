@@ -1,10 +1,10 @@
 ## Instructions to set up a GCE Disk Image for a Borealis Fireworker.
 ##
 ## NOTE:
-## * Non-comment lines can be pasted into an ssh shell one section at a time,
-##   watching for errors, and in some cases responding to input prompts.
-## * # lines are instructions to carry out manually.
-## * ## lines are comments.
+## * Non-comment lines can be pasted into an ssh shell one section at a time.
+##   Respond to input prompts and watch for errors.
+## * `#` lines are instructions to carry out manually.
+## * `##` lines are comments.
 
 # * Create a Google Cloud Platform (GCP) project if you don't have one already.
 #   If needed, enable billing, Compute Engine, Cloud Storage, StackDriver
@@ -56,7 +56,7 @@
 #   Management > Description: Fireworks worker node
 #   [Create]
 
-## Connect to the GCE VM to run the following steps
+## Connect to the GCE VM to run the setup steps, below.
 gcloud compute ssh fireworker
 
 sudo apt update && sudo apt upgrade && sudo apt autoremove
@@ -67,15 +67,16 @@ sudo apt install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
     libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
 
 
-## Reboot to ensure the apts take effect.
+## Reboot the GCE VM to ensure the apts take effect.
 sudo reboot
-## Give it a few seconds to reboot then reconnect.
+## Give it a few seconds to reboot, then reconnect.
 gcloud compute ssh fireworker
 
 
 ## Reinstall gcloud per https://cloud.google.com/sdk/docs/downloads-interactive
 ## so it can install updates and the docker-credential-gcr component. (The snap,
-## apt, and yum packages don't support that.)
+## apt, and yum packages don't support that.) (GCR is the Google Container
+## Registry where you can store Docker Images.)
 sudo snap remove google-cloud-sdk
 
 curl https://sdk.cloud.google.com > install.sh
@@ -104,7 +105,9 @@ sudo systemctl start docker
 ## Join the `docker` group so you can run docker commands without `sudo`.
 sudo usermod -aG docker "$USER"
 
-# To make that take effect, disconnect (^D) and `gcloud compute ssh fireworker` back.
+## To make that take effect, disconnect and reconnect.
+exit
+gcloud compute ssh fireworker
 
 ## Test docker
 docker --version
@@ -113,11 +116,16 @@ docker info
 ## Set up to authenticate to GCR Docker repositories.
 ## You can pass specific gcr repo names here, e.g. gcr.io,eu.gcr.io,us.gcr.io,asia.gcr.io
 gcloud auth configure-docker
-## There are alternate ways to authenticate, e.g.:
+## NOTE: There are alternate ways to authenticate, e.g.:
 ##   echo y | docker-credential-gcr configure-docker
 
-## Pull any docker images you want to preload for faster DockerTask runs.
-docker pull python:2.7.16
+## Pull any Docker Images you want preinstalled for faster task startup.
+##
+## Tip: If each developer's application Docker Image is built 'FROM' a lower
+## level Image that's common to the team (containing runtime components like
+## Linux apts, Python, and pips), then preinstalling the runtime Image will
+## save Docker Image build time as well as task startup time.
+docker pull python:3.8.2
 
 ## ------------------------------------------------------------------------
 ## Create and switch to the fireworker user that'll run the borealis service.
@@ -138,10 +146,10 @@ source ~/.bash_aliases
 
 mkdir ~/borealis && cd ~/borealis
 
-pyenv install 3.8.0
+pyenv install 3.8.2
 
-pyenv global 3.8.0
-pyenv local 3.8.0
+pyenv global 3.8.2
+pyenv local 3.8.2
 pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
 
 pyenv virtualenv fireworker

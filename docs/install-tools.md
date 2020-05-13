@@ -33,7 +33,8 @@ Also see [Handy Links](handy-links.md).
 
    If it prints an error message like `pyenv: python2: command not found`, you might
    need to install a suitable version of Python and configure `gcloud` to use it.
-   E.g. if you use `pyenv` to manage Python installations:
+
+   Assuming you use `pyenv` to manage Python installations:
 
    ```sh
    pyenv install 2.7.17
@@ -50,7 +51,7 @@ Also see [Handy Links](handy-links.md).
 
 1. Run `gcloud components list` to see which components are installed.
 If the `docker-credential-gcr` component is not installed
-(**TODO:** Do we still need it?), run
+[**TODO:** Do we still need it?], run
 
        gcloud components install docker-credential-gcr
 
@@ -78,13 +79,19 @@ If the `docker-credential-gcr` component is not installed
    for [gcloud init](https://cloud.google.com/sdk/gcloud/reference/init) and
    the other gcloud subcommands.
 
+* Afterwards, `gcloud` will occasionally prompt to install updates.
+You can do it proactively via the command:
+
+   ```sh
+   gcloud components update
+   ```
 
 
 ## Install Docker
 
-You'll need Docker on your development computer if you want to build and test
-Docker Images locally and/or to run a Fireworker locally. Otherwise, you can
-do this entirely on Cloud Build and Compute Engine, respectively.
+If you want to build and test Docker Images locally on your development computer
+and/or to run a Fireworker locally, you'll need to install Docker. Without it, you
+can still run these steps on Cloud Build and Compute Engine servers.
 
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop).
 1. **Optional:** Create a Docker ID [on their website](https://www.docker.com/)
