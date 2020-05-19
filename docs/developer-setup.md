@@ -6,7 +6,7 @@ following steps to set up to run FireWorks workflows on Google Cloud Platform.
 Also see [Handy Links](handy-links.md).
 
 
-## Core setup
+## Main setup
 
 1. Have the team setup administrator add your account to the project
 or do the [Team Setup](team-setup.md) steps and create the project.
@@ -40,37 +40,6 @@ and customize ACLs.)
    **Tip:** Store the bucket name in an environment variable, e.g.
    `export WORKFLOW_STORAGE_ROOT="xyzzy-esther"`, so your team's software can
    determine the bucket to use.
-
-
-## If you want to run Fireworker locally
-
-If you want to run a Fireworker locally on your development computer, you'll
-need a service account private key file to avoid quota warnings and limits.
-(You'll also need to install Docker.)
-
-   1. **Prerequisite:** The team (administrator) setup
-   [how-to-install-gce-server.txt](../borealis/setup/how-to-install-gce-server.txt)
-   must've created the "fireworker" Service Account and granted it at least
-   these permissions:
-       * Logs Writer
-       * Storage Object Admin
-
-   1. Get a service account private key as a json file and append an `export`
-   statement to your shell `.profile` or `.bash_profile` file:
-
-      ```bash
-      PROJECT="$(gcloud config get-value core/project)"
-      FIREWORKER_KEY="${HOME}/bin/fireworker.json"
-      gcloud iam service-accounts keys create "${FIREWORKER_KEY}" \
-          --iam-account "fireworker@${PROJECT}.iam.gserviceaccount.com"
-
-      echo "export GOOGLE_APPLICATION_CREDENTIALS=${FIREWORKER_KEY}" >> ~/.profile
-      ```
-
-      Then run that `export` command or create a new shell.
-
-
-## More setup
 
 1. Assuming your MongoDB LaunchPad server is running on the port `27017` on
 a server named `mongodb`
@@ -119,4 +88,59 @@ local computer will access it at the tunnel's origin `127.0.0.1:27017` or
 
    You can reset it whenever you want to clear out all the workflow tasks.
 
-See [Building Your Docker Image](docs/docker-build.md).
+See [Building Your Docker Image](docker-build.md).
+
+
+## If you want to run Fireworker locally
+
+If you want to run a Fireworker locally on your development computer, you'll
+need a service account private key file to avoid quota warnings and limits.
+(You'll also need to install Docker.)
+
+1. **Prerequisite:** The team (administrator) setup
+[how-to-install-gce-server.txt](../borealis/setup/how-to-install-gce-server.txt)
+must've created the "fireworker" Service Account and granted it at least
+these permissions:
+    * Logs Writer
+    * Storage Object Admin
+
+1. Get a service account private key as a json file and append an `export`
+statement to your shell `.profile` or `.bash_profile` file:
+
+   ```bash
+   PROJECT="$(gcloud config get-value core/project)"
+   FIREWORKER_KEY="${HOME}/bin/fireworker.json"
+   gcloud iam service-accounts keys create "${FIREWORKER_KEY}" \
+       --iam-account "fireworker@${PROJECT}.iam.gserviceaccount.com"
+
+   echo "export GOOGLE_APPLICATION_CREDENTIALS=${FIREWORKER_KEY}" >> ~/.profile
+   ```
+
+   Then run that `export` command or create a new shell.
+
+1. In a fresh development directory, install Python 3.8, create a Python
+virtual environment, and install the borealis-fireworks pip.
+
+1. Create a `my_launchpad.yaml` file:
+
+    ```yaml
+    host: localhost
+    name: noether
+    username: null
+    password: null
+    port: 27017
+    strm_lvl: INFO
+    idle_for_rockets: 60
+    idle_for_waiters: 90
+    ```
+
+The last two fields let you set how long Fireworker will idle (in seconds)
+before exiting. Short times are convenient when running Fireworker on your
+local computer. In contrast, launching a GCE VM takes around a minute and we
+want those Fireworkers to wait a while for new work before exiting.
+
+Fireworker will idle `idle_for_rockets` seconds (default 15 * 60) for any
+READY-to-run rockets to appear in the queue or `idle_for_waiters` seconds
+(default 60 * 60, >= idle_for_rockets) for WAITING rockets to become READY,
+that is for queued rockets that are just waiting on other upstream rockets to
+finish.

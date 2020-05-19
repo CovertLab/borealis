@@ -1,6 +1,6 @@
 # Change Log
 
-## v0.6.0 - v0.6.2
+## v0.6.0 - v0.6.3
 * Clarify DockerTask exception messages.
 * Add `example_mongo_ssh.sh`.
 * More documentation progress.

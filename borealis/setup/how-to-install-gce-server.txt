@@ -27,32 +27,35 @@
 #   MongoDB installation, or a Marketplace installation
 #   https://console.cloud.google.com/marketplace/browse?q=mongodb
 
-## Next, create a Compute Engine Disk Image as a basis for creating Compute
-## Engine VM instances. This Image will begin an Image Family to swap in upraded
-## Images when needed.
+
+## =========================================================================
+## TO CREATE A COMPUTE ENGINE DISK IMAGE
+## This Disk Image will be the basis for creating Compute Engine VM instances.
+## It will begin an Image Family to swap in upgraded Images when needed.
 
 # * Create a Compute Engine VM instance via the Google Cloud Platform web
 #   console https://console.cloud.google.com/compute/instancesAdd or via a
 #   `gcloud compute instances create` command line.
 #     Name: fireworker
 #     Region & Zone: <where you want to run everything>
-#     Machine family/series: N1 n1-standard-1 [or other. You'll be able to use the
-#       resulting Disk Image for any machine type you want.]
-#     Boot disk: New 200 GB Standard persistent disk, Ubuntu 19.10 (*Not* COS)
-#       [Your needs might differ. You can resize it later, but changing the OS
-#       image requires creating a new VM from scratch. Container-Optimized OS
-#       doesn't have a package manager and is not intended to install software.]
+#     Machine family/series: N1 n1-standard-1 [or other. These steps create a
+#       Disk Image. Later you can instantiate different machine types from this
+#       Disk Image.]
+#     Boot disk: New 200 GB Standard persistent disk, Ubuntu 20.04 LTS Minimal
+#       (or later).
+#       [Your needs might differ. You can resize it later but changing the OS
+#       image requires creating a new Disk Image from scratch. Do NOT pick "COS"
+#       Container-Optimized OS. COS doesn't have a package manager and is not
+#       built to install software.]
 #     Identity and API access: "Compute Engine default service account" or
 #       the "fireworker" service account.
-#     Access scopes: set access for each API
-#       Cloud Debugger Enabled
-#       Compute Engine Read Write
-#       Service Control Enabled
-#       Service Management Read Write
-#       Stackdriver Logging Write Only
-#       Stackdriver Monitoring Write Only
-#       Stackdriver Trace Write Only
-#       Storage Read Write
+#     Access scopes: "Set access for each API":
+#       Cloud Debugger: Enabled [we haven't tested this but it should come in handy]
+#       Compute Engine: Read Write
+#       Service Control: Enabled [the default]
+#       Service Management: Read Write
+#       Stackdriver Logging + Monitoring + Trace: Write Only [the default]
+#       Storage: Read Write
 #   Management > Description: Fireworks worker node
 #   [Create]
 
@@ -63,8 +66,8 @@ sudo apt update && sudo apt upgrade && sudo apt autoremove
 
 sudo apt install -y docker.io
 sudo apt install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
-    libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev \
-    libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
+    libreadline-dev libsqlite3-dev llvm libncurses5-dev \
+    libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python-openssl nano
 
 
 ## Reboot the GCE VM to ensure the apts take effect.
@@ -115,8 +118,8 @@ docker info
 
 ## Set up to authenticate to GCR Docker repositories.
 ## You can pass specific gcr repo names here, e.g. gcr.io,eu.gcr.io,us.gcr.io,asia.gcr.io
-gcloud auth configure-docker
-## NOTE: There are alternate ways to authenticate, e.g.:
+echo y | gcloud auth configure-docker
+## NOTE: If Docker auth gives you trouble, you can switch to docker-credential-gcr:
 ##   echo y | docker-credential-gcr configure-docker
 
 ## Pull any Docker Images you want preinstalled for faster task startup.
@@ -125,16 +128,18 @@ gcloud auth configure-docker
 ## level Image that's common to the team (containing runtime components like
 ## Linux apts, Python, and pips), then preinstalling the runtime Image will
 ## save Docker Image build time as well as task startup time.
-docker pull python:3.8.3
+### Example: docker pull python:3.8.3
+### Example: docker pull gcr.io/$(gcloud config get-value core/project)/app-runtime
 
 ## ------------------------------------------------------------------------
 ## Create and switch to the fireworker user that'll run the borealis service.
 sudo adduser --disabled-password fireworker
+
 sudo usermod -aG docker fireworker
 sudo su -l fireworker
 
 ## Set up fireworker to authenticate to GCR Docker repositories.
-gcloud auth configure-docker
+echo y | gcloud auth configure-docker
 
 ## Set up the software environment for borealis-fireworker
 curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
@@ -159,17 +164,17 @@ pyenv rehash
 
 ## Find the borealis setup files that we'll need to copy.
 SETUP=$(fireworker --setup)
-echo The borealis-fireworker `setup` files are in: $SETUP
+echo The borealis-fireworker "setup" files are in: $SETUP
 
 ## Copy the launchpad yaml file from the borealis setup directory.
-cp ${SETUP}/example_my_launchpad.yaml gce_my_launchpad.yaml
+cp ${SETUP}/example_my_launchpad.yaml my_launchpad.yaml
 
-## Configure fireworker's gce_my_launchpad.yaml
+## Configure fireworker's my_launchpad.yaml
 #
-# Edit gce_my_launchpad.yaml with the
+# Edit my_launchpad.yaml with the
 #     host:
 #     port:
-# values needed to connect to your MongoDB instance.
+# values needed to connect to your MongoDB instance, e.g. "mongo", "27017".
 #
 # (The database connection fields
 #     name:
@@ -178,19 +183,21 @@ cp ${SETUP}/example_my_launchpad.yaml gce_my_launchpad.yaml
 # will normally be overridden by metadata attributes set when launching the GCE
 # VMs, but you can set them here for a default database.)
 #
-# Optionally add settings like
+# ... and optionally add settings like
 #     idle_for_rockets: 900
 #     idle_for_waiters: 3600
-# if you want to adjust how long Fireworker will idle (in seconds) before
-# exiting. Consider making these settings shorter when running Fireworker on your
-# local computer where starting a Fireworker doesn't require launching a GCE VM,
-# or longer when your workflow contains tasks that have to wait longer than 3600
-# seconds for prerequisite tasks.
+# if you want to adjust how long Fireworker will idle before exiting. Fireworker
+# will idle `idle_for_rockets` seconds (default 15 * 60) for any READY-to-run
+# rockets to appear in the queue or `idle_for_waiters` seconds (default 60 * 60,
+# >= idle_for_rockets) for WAITING rockets to become READY, that is for queued
+# rockets that are just waiting on other upstream rockets to finish. Consider
+# making that longer when your workflow contains tasks that have to wait longer
+# than that for prerequisite tasks.
 #
-# Optionally set
+# ... and optionally set
 #     logdir: /home/fireworker/fw/logs
 # for local Fireworks log files.
-nano gce_my_launchpad.yaml
+nano my_launchpad.yaml
 
 ## Copy the startup.sh script and the service file.
 cp ${SETUP}/startup.sh .
@@ -201,44 +208,45 @@ exit
 
 ### ------------------------------------------------------------------------
 
-# Follow the instructions in /home/fireworker/borealis/borealis-fireworker.service
+# Follow the instructions in the file you copied to
+# /home/fireworker/borealis/borealis-fireworker.service
 # to set up that systemd service.
 
 ### ------------------------------------------------------------------------
 
-## Make a disk image in the disk image family "fireworker":
+## MAKE A DISK IMAGE IN THE DISK IMAGE FAMILY "fireworker":
 sudo systemctl stop borealis-fireworker
 sudo shutdown -h now
 
 # * Watch the Compute Engine > VM instances page to see when this VM has fully stopped.
 # * Click on the disk "fireworker" in the Compute Engine > Disks console page.
-#   https://console.cloud.google.com/compute/disks?project=allen-discovery-center-mcovert
+#   https://console.cloud.google.com/compute/disks
 # * Click "CREATE IMAGE".
 # * Name the image like "fireworker-v0", picking the next number in the fireworker series.
 # * Set "Family" to "fireworker"  <== MUST DO THIS. The launch-workers script will
 #   instantiate workers by the Disk Image Family name.
-# * Set "Description" to "Fireworks worker node" or some such to document this Image.
+# * Set "Description" to "Fireworks worker node" or some such for documentation.
 # * Click "Create".
-# * When it finishes, delete this GCE VM and its boot disk using gcloud or the
-#   console -- maybe after testing the Disk Image.
+# * When it finishes, test the Disk Image then delete this GCE VM and its boot
+#   disk using gcloud or the console.
 
-### ------------------------------------------------------------------------
 
+## =========================================================================
 ## TO UPDATE THIS DISK IMAGE IN THE FUTURE
-## First start a VM from this Disk Image using the console, gcloud, or the
-## gce.py script:
+## First start a VM from this Disk Image using the gce.py script (or use the
+## GCE console or gcloud command line although they won't append "-0" to the
+## VM name "fireworker"):
 gce fireworker -m db=default_fireworks_database
 
 ## Connect to it:
-gcloud compute ssh fireworker
+gcloud compute ssh fireworker-0
 
 ## Stop the service:
 sudo systemctl stop borealis-fireworker
 
 ## Upgrade apts:
 ## (If it says "Resource temporarily unavailable", wait and try again.)
-sudo apt update && sudo apt upgrade
-sudo apt autoremove
+sudo apt update && sudo apt upgrade && sudo apt autoremove
 
 ## If you upgraded any apts or if it printed `*** System restart required ***`:
 sudo reboot

@@ -161,11 +161,12 @@ class Fireworker(object):
     def launch_rockets(self):
         # type: () -> str
         """Keep launching rockets that are ready to go. Stop after:
-          * idling idle_for_rockets secs for any rockets READY to run (default
-            15 minutes),
-          * idling idle_for_waiters secs for WAITING rockets to become READY
-            (for queued rockets that are waiting on other rockets; default 60
-            minutes; >= idle_for_rockets),
+          * idling idle_for_rockets seconds (default 15 * 60) for any
+            READY-to-run rockets to appear in the queue,
+          * idling idle_for_waiters seconds (default 60 * 60,
+            >= idle_for_rockets) for WAITING rockets to become READY, that is
+            for queued rockets that are just waiting on other upstream rockets
+            to finish,
           * while idling, the custom metadata attribute `quit` got set
             (gcloud compute instances add-metadata...) to 'soon' or 'when-idle'
           * between rockets, the custom metadata attribute `quit` got set to
