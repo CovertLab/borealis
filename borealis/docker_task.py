@@ -67,7 +67,8 @@ class DockerTask(FiretaskBase):
       You can put a ':TAG' on it but keep in mind that ':latest' has nothing to
       do with time. It's merely the default Docker tag name.
 
-    command: the shell command tokens to run in the Docker Container.
+    command: the shell command tokens to run in the Docker Container. This can
+      be a `str` or a `List[str]`.
 
     internal_prefix: the base pathname inside the Docker Container for inputs
       and outputs (files and directory trees).

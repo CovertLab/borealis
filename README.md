@@ -101,15 +101,18 @@ to use. All services, VMs, data, and access controls are scoped by the project.
 
 After doing one-time setup, the steps to run a workflow are:
 
-1. Build a Docker container Image containing your payload task code to run in
+1. Build a Docker container Image containing your payload tasks to run in
 the workflow. The `gcloud builds submit` command will upload your code and a
 `Dockerfile`, then trigger a Google Cloud Build server server to build the
 Docker Image and store it in the Google Container Registry.
 
+   See [Building Your Docker Image](docs/docker-build.md) for how to build
+   the Docker Image, starting with writing the `Dockerfile`.
+
 1. Build your workflow and upload it to MongoDB.
 You can do this manually by writing a `.yaml` file and running the `lpad`
-command line tool, or automate it as a workflow builder that calls FireWorks
-APIs to construct a `Workflow` object and upload it.
+command line tool to upload it, or automate it by implementing a workflow builder
+program which calls FireWorks APIs to construct and upload a `Workflow` object.
 
    The workflow will run instances of the `DockerTask` Firetask. Of course
 it can run other Firetasks as well; they just won't get deployment,
@@ -120,12 +123,15 @@ a Google Compute Engine VM, use the `borealis/setup/example_mongo_ssh.sh`
 shell script.
 
 1. Start one or more `fireworker` processes to do the work.
-You can run the `fireworker` Python script locally (which is handy for
-debugging) or launch Compute Engine VMs that run `fireworker` (handy for
-running lots of tasks in parallel).
 
-   You can run the Python script `gce` to launch a group of workers, or
-automate it by calling its `ComputeEngine` class from your workflow builder.
+   There are three ways to do this:
+
+   1. Run the `fireworker` process locally (this is handy for
+   debugging) by running the `fireworker` Python script.
+   1. Launch a group of fireworkers on Compute Engine VMs (this is handy for
+   getting a lot of work done in parallel) by running the Python script `gce`.
+   1. Automate the launching of a group of fireworkers on GCE by making your
+   workflow builder code call on the Borealis `ComputeEngine` class.
 
 1. Watch the
 [**StackDriver** cloud logs](https://console.cloud.google.com/logs/query)
@@ -140,28 +146,32 @@ of your workers running.
 
 ## More detail on the Borealis components
 
+These components can be used separately. Together they enable running
+FireWorks workflows in Google Cloud.
+
+
 **gce:**
-The `ComputeEngine` class and its command line wrapper `gce` will
+The `ComputeEngine` class and its command line wrapper `gce`
 create, tweak, and delete a group of worker VMs.
 
 After you generate a workflow, call FireWorks' `LaunchPad.add_wf()`
 (or run FireWorks' `lpad add` command line tool) to upload it to the
 LaunchPad. Then call `ComputeEngine.create()` (or the `gce` command line)
-to spin up a group of worker VMs to run the workflow.
-This uses GCE metadata fields to pass in parameters including the
-LaunchPad db name and username.
+to spin up a group of worker VMs to run that workflow and pass in the
+parameters such as the LaunchPad db name and username
+(via GCE metadata fields).
 
 `ComputeEngine` and `gce` can also immediately delete a group of worker
-VMs or ask them to quit cleanly between Firetasks, although the workers will
-shut down on their own after an idle timeout.
+VMs or ask them to quit cleanly between Firetasks, although we usually let
+fireworkers shut down on their own after an idle timeout.
 
 `ComputeEngine` and `gce` can also set GCE metadata fields on a group of
 workers. This is used to implement the `--quit-soon` feature.
 
 
 **fireworker:**
-Borealis provides the `fireworker` Python script to run as as the top level
-program of each worker.
+The `fireworker` Python script runs as as the top level program of each worker
+node.
 `fireworker` reads the worker launch parameters and calls the FireWorks library
 to "rapidfire" launch your FireWorks "rockets." It also handles server shutdown.
 
@@ -181,6 +191,11 @@ up your computer to access the right Google Cloud Project.
 The `DockerTask` Firetask pulls a named Docker Image, starts up a Docker
 Container, runs a given shell command in that Container, and stops the container.
 
+Its required params are task `name`, Docker `image`, shell `command`,
+`internal_prefix` (base pathname inside the Docker Container for inputs and
+outputs), and `storage_prefix` (base pathname in GCS for inputs and outputs).
+Its optional params are `inputs`, `outputs`, and `timeout`.
+
 Docker always runs a shell command in the Container. If you want to run a
 `Firetask` in the Container, include a little Python script to bridge the gap:
 Take a Firetask name and a JSON dictionary as command line arguments,
@@ -197,8 +212,8 @@ task-to-task interdependencies for FireWorks.)
 Each path you specify in DockerTask's `inputs` and `outputs`
 denotes a directory tree of files iff it ends with a `/`.
 
-When storing task output files, `DockerTask` creates blobs with names ending in
-`/` to act as "directory placeholders" to speed up tree-oriented traversal.
+When storing task output files, `DockerTask` creates entries with names ending in
+`/` to act as _directory placeholders_ that speed up tree-oriented traversal.
 This means you can run
 [gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse) without using the
 `--implicit-dirs` flag, resulting in mounted directories that run 10x faster.
@@ -214,5 +229,7 @@ logging (which `fireworker` connects to **StackDriver**).
 
 See the [Team Setup](docs/team-setup.md) steps and
 the [Developer Setup](docs/developer-setup.md) steps.
+
+See [Building Your Docker Image](docs/docker-build.md).
 
 Also see [Handy Links](docs/handy-links.md).

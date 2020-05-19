@@ -37,6 +37,9 @@ See [Cloud Billing](https://cloud.google.com/billing/docs).
 1. Follow the [Install the development tools](install-tools.md) page to install, log in
 to the `gcloud` command line tool, and configure your default project and zone.
 
+1. **TODO:** Create the Docker Image for your project, starting with the
+Dockerfile(s) and scripts needed to build it.
+
 1. Follow the instructions in
 [how-to-install-gce-server.txt](../borealis/setup/how-to-install-gce-server.txt)
 to create your Fireworker Compute Engine Disk Image and its Service Account.

@@ -125,7 +125,7 @@ gcloud auth configure-docker
 ## level Image that's common to the team (containing runtime components like
 ## Linux apts, Python, and pips), then preinstalling the runtime Image will
 ## save Docker Image build time as well as task startup time.
-docker pull python:3.8.2
+docker pull python:3.8.3
 
 ## ------------------------------------------------------------------------
 ## Create and switch to the fireworker user that'll run the borealis service.
@@ -146,10 +146,10 @@ source ~/.bash_aliases
 
 mkdir ~/borealis && cd ~/borealis
 
-pyenv install 3.8.2
+pyenv install 3.8.3
 
-pyenv global 3.8.2
-pyenv local 3.8.2
+pyenv global 3.8.3
+pyenv local 3.8.3
 pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
 
 pyenv virtualenv fireworker
@@ -196,7 +196,8 @@ nano gce_my_launchpad.yaml
 cp ${SETUP}/startup.sh .
 cp ${SETUP}/borealis-fireworker.service .
 
-# Logout from the fireworker account (^D).
+## Logout from the fireworker account.
+exit
 
 ### ------------------------------------------------------------------------
 
@@ -223,8 +224,9 @@ sudo shutdown -h now
 
 ### ------------------------------------------------------------------------
 
-## To update this disk image in the future, first start a VM from this Disk
-## Image using the console, gcloud, or the gce.py script:
+## TO UPDATE THIS DISK IMAGE IN THE FUTURE
+## First start a VM from this Disk Image using the console, gcloud, or the
+## gce.py script:
 gce fireworker -m db=default_fireworks_database
 
 ## Connect to it:
@@ -234,15 +236,21 @@ gcloud compute ssh fireworker
 sudo systemctl stop borealis-fireworker
 
 ## Upgrade apts:
+## (If it says "Resource temporarily unavailable", wait and try again.)
 sudo apt update && sudo apt upgrade
+sudo apt autoremove
 
-## If you upgraded any or if it printed `*** System restart required ***`:
+## If you upgraded any apts or if it printed `*** System restart required ***`:
 sudo reboot
 ## ... and wait a few seconds, then reconnect:
 gcloud compute ssh fireworker
 sudo systemctl stop borealis-fireworker
 
-# * Pull any Docker images that you want to preload for speed.
+## Trim the service journal.
+sudo journalctl --vacuum-time=2d
+
+## Pull any Docker images that you want to preload for speed.
+docker pull python:3.8.3  # or similar, including your project's runtime Image
 
 ## Prune Docker images:
 docker image prune
@@ -254,7 +262,7 @@ pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clo
 pyenv rehash
 
 ## Disconnect:
-# ^D
+exit
 
 # * Repeat the "Make a disk image" steps, above.
 # * Test the new disk image. If it doesn't work, you can mark it "deprecated" in

@@ -5,11 +5,29 @@ Also see [Handy Links](handy-links.md).
 
 ## Install the Google Cloud SDK and log in
 
+1. Install Python and Fireworks:
+
+   * Install Python: `pyenv install 3.8.2`
+   * Install a Python virtual environment manager like `virtualenv`,
+     `pyenv-virtualenv`, and `pyenv-virtualenvwrapper`; or `venv`
+   * Create a Python virtual environment in your project directory, e.g.:
+     ```shell script
+     pyenv local 3.8.2
+     pyenv virtualenv myproject
+     pyenv local myproject
+     ```
+   * Install the Fireworks pips:
+     ```shell script
+     pip install FireWorks borealis-fireworks
+     pyenv rehash
+     ```
+     This provides command line tools `lpad`, `gce`, and more.
+
 1. [Install the Cloud SDK](https://cloud.google.com/sdk/install) tools.
 
 1. Test the `gcloud` tool by running the shell command:
 
-   ```sh
+   ```shell script
    gcloud info
    ```
 
@@ -18,7 +36,7 @@ Also see [Handy Links](handy-links.md).
    adjusting them if you installed the SDK somewhere besides
    `$HOME/dev/google-cloud-sdk/`.
 
-   ```sh
+   ```shell script
    # Update PATH for the Google Cloud SDK and gcloud CLI.
    if [ -f '$HOME/dev/google-cloud-sdk/path.bash.inc' ]; then . '$HOME/dev/google-cloud-sdk/path.bash.inc'; fi
 
@@ -34,15 +52,16 @@ Also see [Handy Links](handy-links.md).
    If it prints an error message like `pyenv: python2: command not found`, you might
    need to install a suitable version of Python and configure `gcloud` to use it.
 
-   Assuming you use `pyenv` to manage Python installations:
+   Assuming you use `pyenv` to manage Python installations [otherwise, please
+   adapt these steps for your setup]:
 
-   ```sh
+   ```shell script
    pyenv install 2.7.17
    ```
 
    then add this to your shell profile:
 
-   ```sh
+   ```shell script
    # Set the Python version for Cloud SDK.
    export CLOUDSDK_PYTHON=$(pyenv shell 2.7.17; pyenv which python)
    ```
@@ -57,7 +76,7 @@ If the `docker-credential-gcr` component is not installed
 
 1. Run:
 
-   ```sh
+   ```shell script
    gcloud init
    ```
 
@@ -82,7 +101,7 @@ If the `docker-credential-gcr` component is not installed
 * Afterwards, `gcloud` will occasionally prompt to install updates.
 You can do it proactively via the command:
 
-   ```sh
+   ```shell script
    gcloud components update
    ```
 

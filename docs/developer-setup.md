@@ -6,7 +6,7 @@ following steps to set up to run FireWorks workflows on Google Cloud Platform.
 Also see [Handy Links](handy-links.md).
 
 
-## Steps
+## Core setup
 
 1. Have the team setup administrator add your account to the project
 or do the [Team Setup](team-setup.md) steps and create the project.
@@ -20,7 +20,8 @@ the `gsutil` command line tool to create your storage bucket.
 bucket makes it easier to track usage, clean up when a developer leaves the project,
 and customize ACLs.)
 
-   **NOTE:** Every bucket needs a globally-unique name, i.e. different from every
+   **NOTE:** Every storage bucket needs a **globally-unique name**, that is,
+   different from every
    other GCS bucket in the world. One technique is to pick an unusual prefix for
    buckets in your project and combine that with your name.
    The bucket-creation command will fail if the bucket name is in use.
@@ -31,7 +32,8 @@ and customize ACLs.)
 
    Pick:
    * a unique name,
-   * the same Region used with Compute Engine (run `gcloud info` for info),
+   * the same Region used with Compute Engine
+   (run `gcloud info` or `gcloud config list` for info),
    * `Standard` storage class,
    * the default access control.
 
@@ -39,9 +41,11 @@ and customize ACLs.)
    `export WORKFLOW_STORAGE_ROOT="xyzzy-esther"`, so your team's software can
    determine the bucket to use.
 
-1. If you want to run a Fireworker locally on your development computer, you'll
-need to get a service account private key.
-Without it, you'll hit quota warnings and limits.
+
+## If you want to run Fireworker locally
+
+If you want to run a Fireworker locally on your development computer, you'll
+need a service account private key file to avoid quota warnings and limits.
 (You'll also need to install Docker.)
 
    1. **Prerequisite:** The team (administrator) setup
@@ -66,15 +70,53 @@ Without it, you'll hit quota warnings and limits.
       Then run that `export` command or create a new shell.
 
 
-TODO:
-build a Docker image to run,
-...
+## More setup
 
+1. Assuming your MongoDB LaunchPad server is running on the port `27017` on
+a server named `mongodb`
+in the Google Compute Engine zone `us-west1-b`,
+you can open an ssh tunnel to it like this
+[see the file `setup/example_mongo_ssh.sh` for a richer example]:
 
-xxxxx to connect to the LaunchPad MongoDB server. Metadata parameters and the
-worker's `my_launchpad.yaml` file configure the Fireworker's
-MongoDB host, port, DB name, and idle timeout durations.
- 
-Each developer should have their own DB name on a shared
-MongoDB server, or multiple DB names if desired. Each DB is an independent
-LaunchPad space for workflows and Fireworkers.
+   ```shell script
+   gcloud compute ssh mongodb --zone=us-west1-b -- \
+       -o ExitOnForwardFailure=yes -L 127.0.0.1:27017:localhost:27017
+   ```
+
+   (See `setup/example_mongo_ssh.sh` for why this uses the source IPv4 address
+   `127.0.0.1` rather than `localhost`.)
+
+   (If you can connect directly to your MongoDB server on the Internet, you
+   won't need an ssh tunnel but you will need strong MongoDB login credentials.)
+
+1. Create your `my_launchpad.yaml` file describing how to contact the
+MongoDB LaunchPad server. Given an ssh tunnel, FireWorks commands on your
+local computer will access it at the tunnel's origin `127.0.0.1:27017` or
+`localhost:27017`:
+
+   ```yaml
+   host: localhost
+   name: noether
+   username: null
+   password: null
+   port: 27017
+   strm_lvl: INFO
+   ```
+
+   Each developer needs a unique DB `name` (`noether` in this example) within
+   the shared MongoDB server. That's an independent LaunchPad scope for
+   workflows and their Fireworkers.
+
+   If you're using MongoDB login authentication credentials, put the
+   `username` and `password` in this yaml file.
+
+1. Create, initialize, and reset your LaunchPad database using the Fireworks
+`lpad` command line utility:
+
+   ```shell script
+   lpad reset
+   ```
+
+   You can reset it whenever you want to clear out all the workflow tasks.
+
+See [Building Your Docker Image](docs/docker-build.md).
