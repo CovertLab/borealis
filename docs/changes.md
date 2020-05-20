@@ -1,10 +1,11 @@
 # Change Log
 
-## v0.6.0 - v0.6.4
+## v0.6.0 - v0.6.5
 * Clarify DockerTask exception messages.
 * Add `example_mongo_ssh.sh`.
 * More documentation progress.
 * Refine CLI help text.
+* Patch `README.md` relative links into absolute links in the setup long_description.
 
 ## v0.5.1
 * Fix the `setup.py` link to `changes.md`.

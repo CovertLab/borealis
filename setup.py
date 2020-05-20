@@ -1,11 +1,16 @@
+import re
 from setuptools import setup
 
 with open('README.md', 'r') as fh:
-    long_description = fh.read()
+    description = fh.read()
+    long_description = re.sub(
+        r'\]\((?!http)',
+        '](https://github.com/CovertLab/borealis/blob/master/',
+        description)
 
 setup(
     name='borealis-fireworks',
-    version='0.6.4',
+    version='0.6.5',
     packages=['borealis', 'borealis.util'],
     url='https://github.com/CovertLab/borealis',
     project_urls={
