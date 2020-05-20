@@ -236,14 +236,14 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
         DB name
         DB username, DB password - null for no user authentication
         logdir, strm_lvl, ... - for "launchpad" & "rocket" logging
-        idle_for_waiters, idle_for_rockets
+        idle_for_rockets, idle_for_waiters
     with fallbacks:
         name - the network hostname
         DB host, DB port - localhost:27017 (Fireworks defaults)
         DB name - DEFAULT_FIREWORKS_DATABASE
         DB username, DB password - null
         logdir, strm_lvl - FireWorks defaults
-        idle_for_waiters, idle_for_rockets - see Fireworker()
+        idle_for_rockets, idle_for_waiters - see Fireworker()
 
     The DB username and password are needed if MongoDB is set up to require
     authentication, and it could use shared or user-specific accounts.
@@ -332,21 +332,25 @@ def cli():
     parser = argparse.ArgumentParser(
         description=
             'Run as a FireWorks worker node, launching rockets rapidfire.'
-            ' Designed for Google Compute Engine (GCE) and Google Cloud Storage'
-            ' (GCS). Gets configuration settings from GCE metadata attributes'
-            ' (when running on GCE) and from the Launchpad file (see the `-l`'
-            ' option), with fallbacks.'
+            ' Gets configuration settings from Google Compute Engine (GCE)'
+            ' metadata attributes when running on GCE, else from the Launchpad'
+            ' file (see the `-l` option), with fallbacks.'
             ' The setup source files are "{}/*"'.format(setup_dir))
     parser.add_argument('-l', dest='launchpad_filename',
         default=DEFAULT_LPAD_YAML,
-        help='Launchpad config YAML filename (default="{}").'.format(
+        help='Launchpad config YAML filename (default="{}") to get the DB name,'
+             ' host, port, username, and password for the MongoDB connection,'
+             ' the idle_for_rockets and idle_for_waiters parameters, etc.'
+             ' GCE VM metadata fields take precedence.'.format(
             DEFAULT_LPAD_YAML))
     parser.add_argument('-s', '--setup', action='store_true',
         help='Print the path containing the setup files, then'
-             ' exit. Try: `SETUP=$(fireworker --setup)`')
+             ' exit. Useful for finding the server setup files after installing'
+             ' the borealis-fireworker pip. Run: `SETUP=$(fireworker --setup)`'
+             ' or see the usage help description.')
     parser.add_argument('--development', action='store_true',
         help="Development mode: When done, just exit Python without deleting"
-             " this GCE VM worker instance (if running on GCE).")
+             " this GCE VM worker instance if it is running on GCE.")
 
     args = parser.parse_args()
     if args.setup:

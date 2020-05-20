@@ -168,6 +168,28 @@ fireworkers shut down on their own after an idle timeout.
 `ComputeEngine` and `gce` can also set GCE metadata fields on a group of
 workers. This is used to implement the `--quit-soon` feature.
 
+After installing the `borealis-fireworks` pip:
+
+```shell script
+$ gce -h
+usage: gce [-h] [--delete | --set-metadata | --quit-soon] [-d] [-b BASE]
+           [-c COUNT] [-f FAMILY] [-l LAUNCHPAD_FILENAME]
+           [-m METADATA_KEY=VALUE,...] [-o OPTION_KEY=VALUE,...]
+           NAME-PREFIX
+
+Create, delete, or set metadata on a group of Google Compute Engine VMs, e.g.
+workflow workers that start up from a disk image-family. (This code also has
+an API for direct use.)
+
+...
+```
+
+Or to run it within the `borealis-fireworks` source code repository:
+
+```shell script
+$ python -m borealis.gce -h
+```
+
 
 **fireworker:**
 The `fireworker` Python script runs as as the top level program of each worker
@@ -187,14 +209,33 @@ debugging. For that, you'll need to install the `borealis-fireworks` pip and set
 up your computer to access the right Google Cloud Project.
 
 
+```shell script
+$ fireworker -h
+usage: fireworker.py [-h] [-l LAUNCHPAD_FILENAME] [-s] [--development]
+
+Run as a FireWorks worker node, launching rockets rapidfire. Gets configuration
+settings from Google Compute Engine (GCE) metadata attributes when running on
+GCE, else from the Launchpad file (see the `-l` option), with fallbacks. The
+setup source files are "/Users/jerry/dev/borealis/borealis/setup/*"
+...
+```
+
+
 **DockerTask:**
 The `DockerTask` Firetask pulls a named Docker Image, starts up a Docker
 Container, runs a given shell command in that Container, and stops the container.
 
-Its required params are task `name`, Docker `image`, shell `command`,
-`internal_prefix` (base pathname inside the Docker Container for inputs and
-outputs), and `storage_prefix` (base pathname in GCS for inputs and outputs).
-Its optional params are `inputs`, `outputs`, and `timeout`.
+Required params:
+* task `name` for logging
+* Docker `image` to load up into a Container
+* shell `command` to run in the Container
+* `internal_prefix` input/output base pathname in the Container
+* `storage_prefix` input/output base pathname in GCS
+
+Optional params:
+* `inputs` input files and directory trees
+* `outputs` output files and directory trees
+* `timeout` for stopping the shell command, in seconds
 
 Docker always runs a shell command in the Container. If you want to run a
 `Firetask` in the Container, include a little Python script to bridge the gap:
