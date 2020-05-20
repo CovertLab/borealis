@@ -111,7 +111,7 @@ Docker Image and store it in the Google Container Registry.
 
 1. Build your workflow and upload it to MongoDB.
 You can do this manually by writing a `.yaml` file and running the `lpad`
-command line tool to upload it, or automate it by implementing a workflow builder
+command line tool to upload it, or automate it by implementing a _workflow builder_
 program which calls FireWorks APIs to construct and upload a `Workflow` object.
 
    The workflow will run instances of the `DockerTask` Firetask. Of course
@@ -122,20 +122,83 @@ storage, logging, and timeout features from `DockerTask`.
 a Google Compute Engine VM, use the `borealis/setup/example_mongo_ssh.sh`
 shell script.
 
-1. Start one or more `fireworker` processes to do the work.
+1. Start one or more `fireworker` processes to run the workflow tasks.
 
    There are three ways to do this:
 
-   1. Run the `fireworker` process locally (this is handy for
+   * Run the `fireworker` process locally (this is handy for
    debugging) by running the `fireworker` Python script.
-   1. Launch a group of fireworkers on Compute Engine VMs (this is handy for
+   * Launch a group of fireworkers on Compute Engine VMs (this is handy for
    getting a lot of work done in parallel) by running the Python script `gce`.
-   1. Automate the launching of a group of fireworkers on GCE by making your
-   workflow builder code call on the Borealis `ComputeEngine` class.
+   * Automate the launching of a group of fireworkers on GCE by making your
+   workflow builder code call on the Borealis `ComputeEngine` class after it
+   builds and uploads the workflow.
 
-1. Watch the
-[**StackDriver** cloud logs](https://console.cloud.google.com/logs/query)
-of your workers running.
+1. While it runs and afterwards, you can:
+
+   * watch the [main GCP dashboard](https://console.cloud.google.com/home/dashboard)
+
+     **Tip:** Add VM load charts to this page.
+
+   * watch the [Compute Engine VM Instances](https://console.cloud.google.com/compute/instances)
+   console to see your list of workers
+
+   * watch the [**StackDriver** cloud logs](https://console.cloud.google.com/logs/query)
+   of your running workers
+
+   * [open the Fireworks Web GUI](https://materialsproject.github.io/fireworks/basesite_tutorial.html)  
+     ```shell script
+     lpad webgui
+     ````
+
+   * [query your Fireworks tasks and Workflows](https://materialsproject.github.io/fireworks/query_tutorial.html)  
+     ```shell script
+     lpad get_fws
+     lpad get_wflows
+     lpad report
+     ````
+
+   * [rerun Fireworks tasks or Workflows](https://materialsproject.github.io/fireworks/rerun_tutorial.html)  
+     ```shell script
+     lpad rerun_fws -i <FW_IDS>
+     lpad rerun_fws -s FIZZLED
+     ````
+
+   * [pause/restart Fireworks tasks or Workflows](https://materialsproject.github.io/fireworks/defuse_tutorial.html)  
+     ```shell script
+     lpad pause_fws -i <FW_IDS>
+     lpad resume_fws -i <FW_IDS>
+     lpad defuse_fws -i <FW_IDS>
+     lpad reignite_fws -i <FW_IDS>
+
+     lpad pause_wflows -i <FW_IDS>
+     lpad defuse_wflows -i <FW_IDS>
+     lpad rerun_fws -i <FW_IDS>
+     lpad reignite_wflows -i <FW_IDS>
+     ````
+
+   * build a new Docker Image containing bug-fixes, then re-run Fireworks tasks.
+
+     If all the fireworkers have exited, run the `gce` command to launch new
+   fireworkers.
+
+   * launch additional fireworkers:
+     ```shell script
+     gce --base <BASE> --count <COUNT> <NAME-PREFIX>
+     ````
+
+     Set the BASE number argument or NAME-PREFIX argument so the new VM names won't
+     conflict with your already-running VMs.
+
+   * [Archive or delete a workflow](https://materialsproject.github.io/fireworks/defuse_tutorial.html)
+   or reset the entire Launchpad database:
+     ```shell script
+     lpad archive_wflows -i <FW_IDS>
+
+     lpad delete_wflows -i <FW_IDS>
+
+     lpad reset
+     ````
 
 1. Access the output files in GCS via the
 [gsutil](https://cloud.google.com/storage/docs/gsutil) command line tool, the
@@ -146,7 +209,7 @@ of your workers running.
 
 ## More detail on the Borealis components
 
-These components can be used separately. Together they enable running
+The Borealis components can be used separately. Together they enable running
 FireWorks workflows in Google Cloud.
 
 

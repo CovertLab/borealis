@@ -3,14 +3,19 @@ from setuptools import setup
 
 with open('README.md', 'r') as fh:
     description = fh.read()
-    long_description = re.sub(
-        r'\]\((?!http)',
-        '](https://github.com/CovertLab/borealis/blob/master/',
+    # Patch the relative links so they'll work on PyPI.
+    description2 = re.sub(
+        r'\]\(([\w/.-]+\.png)\)',
+        r'](https://github.com/CovertLab/borealis/raw/master/\1)',
         description)
+    long_description = re.sub(
+        r'\]\(([\w/.-]+)\)',
+        r'](https://github.com/CovertLab/borealis/blob/master/\1)',
+        description2)
 
 setup(
     name='borealis-fireworks',
-    version='0.6.5',
+    version='0.6.6',
     packages=['borealis', 'borealis.util'],
     url='https://github.com/CovertLab/borealis',
     project_urls={

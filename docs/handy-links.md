@@ -41,6 +41,8 @@
   Cloud Functions, and Cloud Run. Those don't seem sufficiently general purpose
   for our purposes, e.g. tasks that need many GB of RAM and disk space.)
 
+    * [GCE VM Instances](https://console.cloud.google.com/compute/instances) console
+
   * [Cloud Storage documentation](https://cloud.google.com/storage/docs) (GCS) -- GCP's
   native way to store data.
     * [Cloud Filestore documentation](https://cloud.google.com/filestore/docs) -- NFS

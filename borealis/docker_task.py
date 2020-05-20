@@ -424,7 +424,10 @@ class DockerTask(FiretaskBase):
             check(False, repr(e))
             raise
         finally:
-            logger.warning('%s', epilogue())
+            if errors:
+                logger.error('%s', epilogue())
+            else:
+                logger.warning('%s', epilogue())
 
             # [Could wipe just os.path.join(self.LOCAL_BASEDIR, 'inputs') to
             # keep the outputs for local scrutiny.]
