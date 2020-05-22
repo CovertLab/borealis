@@ -138,9 +138,9 @@ class CloudStorage(object):
                     # if_generation_match=0: upload if absent, fail if present.
                     blob.upload_from_string(
                         b'', content_type=OCTET_STREAM, if_generation_match=0)
-                except PreconditionFailed as e:  # the blob is already present
+                except PreconditionFailed as _:  # the blob is already present
                     pass
-                except GoogleCloudError as e:
+                except GoogleCloudError as _:
                     # Failing to create a dir placeholder will affect gcsfuse
                     # mounts but won't break the workflow.
                     logging.exception('Failed to make GCS dir "%s"', dir_name)
@@ -159,7 +159,7 @@ class CloudStorage(object):
 
             blob = self.bucket.blob(full_path)
             blob.upload_from_filename(local_path)  # guesses content_type from the path
-        except (GoogleCloudError, OSError) as e:
+        except (GoogleCloudError, OSError) as _:
             logging.exception(
                 'Failed to upload "%s" as GCS "%s"', local_path, full_path)
             return False
@@ -207,7 +207,7 @@ class CloudStorage(object):
 
         try:
             blob.download_to_filename(local_path)
-        except GoogleCloudError as e:
+        except GoogleCloudError as _:
             logging.exception(
                 'Failed to download GCS "%s" as "%s"', blob.name, local_path)
             return False

@@ -110,10 +110,10 @@ def _cleanup_logging():
     """
     root = logging.getLogger()
 
-    for handler in list(root.handlers):
+    for handler in list(root.handlers):  # type: logging.Handler
         if hasattr(handler, 'transport'):
             transport = handler.transport
-            if hasattr(transport, 'flush'):
+            if hasattr(transport, 'flush') and callable(transport.flush):
                 transport.flush()
                 root.removeHandler(handler)
 

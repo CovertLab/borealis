@@ -90,6 +90,6 @@ def run_cmdline(line, trim=True, timeout=TIMEOUT):
     """
     try:
         return run_cmd(tokens=line.split(), trim=trim, timeout=timeout)
-    except (OSError, subprocess.SubprocessError) as e:
+    except (OSError, subprocess.SubprocessError) as _:
         logging.exception('Failed to run command line: %s', line)
         return None
