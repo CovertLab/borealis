@@ -17,8 +17,10 @@ ARG from=python:3.8.3
 FROM ${from}
 
 # Install Linux packages.
+# Be sure to run `apt-get update` and `apt-get install` in the same Docker layer
+# so the first step can't come from an old Docker cache.
 RUN apt-get update \
-    && apt-get install -y libreadline7 libreadline-dev
+    && apt-get install -y swig gfortran llvm cmake nano
 
 # Install all the pips in one Docker layer. Don't cache the downloads.
 COPY requirements.txt /

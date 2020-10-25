@@ -134,7 +134,7 @@ class DockerTask(FiretaskBase):
         repository, tag = parse_repository_tag(self['image'])
         if not tag:
             tag = 'latest'  # 'latest' is the default tag; it doesn't mean squat
-        self._log().info('Pulling Docker image %s:%s', repository, tag)
+        self._log().debug('Pulling Docker image %s:%s', repository, tag)
         try:
             image = docker_client.images.pull(repository, tag)
             self._log().debug('Pulled Docker image %s', image.id)
@@ -246,12 +246,12 @@ class DockerTask(FiretaskBase):
         ok = True
         prefix = self['storage_prefix']
 
-        self._log().info('Pushing %s outputs to GCS %s: %s',
+        self._log().debug('Pushing %s outputs to GCS %s: %s',
             len(to_push), prefix, [mapping.sub_path for mapping in to_push])
         gcs = st.CloudStorage(prefix)
 
         for mapping in to_push:
-           ok = gcs.upload_tree(mapping.local, mapping.sub_path) and ok
+            ok = gcs.upload_tree(mapping.local, mapping.sub_path) and ok
 
         return ok
 
@@ -261,7 +261,7 @@ class DockerTask(FiretaskBase):
         ok = True
         prefix = self['storage_prefix']
 
-        self._log().info('Pulling %s inputs from GCS %s: %s',
+        self._log().debug('Pulling %s inputs from GCS %s: %s',
             len(to_pull), prefix, [mapping.sub_path for mapping in to_pull])
         gcs = st.CloudStorage(prefix)
 
@@ -283,7 +283,7 @@ class DockerTask(FiretaskBase):
         thread." -- https://docs.python.org/3.8/library/_thread.html
         """
         name = self['name']
-        logger.info('Terminating task {} for {}...'.format(name, reason))
+        logger.debug('Terminating task {} for {}...'.format(name, reason))
 
         try:
             container.stop()
@@ -349,14 +349,15 @@ class DockerTask(FiretaskBase):
                 image.id if image else '---')
 
         def epilogue():
-            return '{} task: {}, elapsed {} of timeout parameter {} {}'.format(
+            return '{} TASK: {}, elapsed {} of timeout parameter {} {}'.format(
                 'FAILED' if errors else 'SUCCESSFUL',
                 name,
                 elapsed,
                 data.format_duration(timeout),
                 errors if errors else '')
 
-        logger.warning('STARTING TASK: %s', name)
+        # 'STARTING TASK:' ... 'FAILED TASK:' or 'SUCCESSFUL TASK:'
+        logger.info('STARTING TASK: %s', name)
 
         try:
             docker_client = docker.from_env()
@@ -368,7 +369,7 @@ class DockerTask(FiretaskBase):
             check(self.pull_from_gcs(ins), 'Failed to fetch inputs from GCS')
 
             # -----------------------------------------------------
-            logger.info('Running: %s', self['command'])
+            logger.debug('Running: %s', self['command'])
             mounts = [mapping.mount for mapping in ins + outs if mapping.mount]
             start_secs = seconds_clock()
             container = docker_client.containers.run(
@@ -385,10 +386,12 @@ class DockerTask(FiretaskBase):
                 timer.start()
 
                 try:
-                    for line in container.logs(stream=True):
-                        line = line.decode()
+                    for line_bytes in container.logs(stream=True):
+                        line = line_bytes.decode()
                         lines.append(line)
-                        logger.info('%s', line.rstrip())
+                        stripped = line.rstrip()
+                        if stripped:  # Cloud Logs Viewer gets confusing with empty log messages
+                            logger.debug('%s', stripped)
                 finally:
                     timer.cancel()
 
@@ -427,7 +430,7 @@ class DockerTask(FiretaskBase):
             if errors:
                 logger.error('%s', epilogue())
             else:
-                logger.warning('%s', epilogue())
+                logger.info('%s', epilogue())
 
             # [Could wipe just os.path.join(self.LOCAL_BASEDIR, 'inputs') to
             # keep the outputs for local scrutiny.]

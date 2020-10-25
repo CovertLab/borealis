@@ -70,22 +70,21 @@ def _setup_logging(gce_instance_name, host_name):
 
     # noinspection PyTypeChecker
     client.setup_logging(
-        log_level=logging.WARNING,
+        log_level=logging.INFO,
         excluded_loggers=exclude,
         name=FW_LOGGER.name,
         resource=monitored_resource)
 
-    # To StackDriver cloud logs (which aggregate all machines): From workers
-    # running "locally" (off GCE), log at the WARNING level including start/end
-    # messages (which should be at the NOTICE level but Logs Viewer is unhelpful
-    # with NOTICE). That filters out the 'dockerfiretask' payload stdout lines.
-    # From workers on GCE, log at the DEBUG level to enable remote debugging.
-    # Set the Logs Viewer to INFO level for more conciseness.
+    # To StackDriver cloud logs (which aggregate all machines):
+    # * For workers on GCE, log at the DEBUG level to aid remote debugging.
+    #   People can set the Logs Viewer to INFO level to be less verbose.
+    # * For other workers, log at the INFO level to include start/end messages
+    #   and exclude details like the firetask payload console output.
     #
     # To console logs: Filter out messages already printed by handlers on nested
     # loggers "launchpad" and "rocket.launcher", allowing WARNINGs just in case.
     root = logging.getLogger()
-    fworker_level = logging.DEBUG if gce_instance_name else logging.WARNING
+    fworker_level = logging.DEBUG if gce_instance_name else logging.INFO
     cloud_filter = LogPrefixFilter(
         {'fireworker': fworker_level, 'dockerfiretask': fworker_level},
         logging.WARNING)
@@ -198,7 +197,7 @@ class Fireworker(object):
                 if req == 'soon' or req == 'when-idle':
                     return '"quit={}" request'.format(req)
 
-                FW_CONSOLE_LOGGER.info(
+                FW_CONSOLE_LOGGER.debug(
                     'Sleeping for %s secs waiting for launchable rockets',
                     self.sleep_secs)
                 time.sleep(self.sleep_secs)
@@ -276,7 +275,7 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
         host_name = instance_name or socket.gethostname()
         _setup_logging(instance_name, host_name)
 
-        FW_CONSOLE_LOGGER.info('Reading launchpad config "{}"'.format(
+        FW_CONSOLE_LOGGER.debug('Reading launchpad config "{}"'.format(
             launchpad_filename))
         with open(launchpad_filename) as f:
             lpad_config = yaml.safe_load(f)  # type: dict
@@ -288,13 +287,13 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
         metadata_else_config('idle_for_rockets', DEFAULT_IDLE_FOR_ROCKETS)
 
         redacted_config = dict(lpad_config, password=Redacted())
-        FW_LOGGER.warning(
+        FW_LOGGER.info(
             '\nStarting Fireworker on %s with LaunchPad config: %s\n',
             host_name, redacted_config)
 
         fireworker = Fireworker(lpad_config, host_name)
         stop_reason = fireworker.launch_rockets()
-        FW_LOGGER.warning('Fireworker -- normal exit: {}'.format(stop_reason))
+        FW_LOGGER.info('Fireworker -- normal exit: {}'.format(stop_reason))
         exit_code = 0
     except KeyboardInterrupt:
         FW_LOGGER.warning('Fireworker -- KeyboardInterrupt exit')

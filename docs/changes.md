@@ -1,5 +1,11 @@
 # Change Log
 
+## v0.7.0
+* Log fireworker & firetask start/end at the INFO rather than WARNING level.
+Log task console output and other details at the DEBUG level.
+* Don't log console blank lines since the Cloud Log Viewer now handles them strangely.
+* Add tips & workarounds to the docs, e.g. use Python 3.7 so `gsutil -m` will work.
+
 ## v0.6.6
 * Log an Error rather than a Warning on DockerTask failure.
 

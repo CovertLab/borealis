@@ -143,13 +143,31 @@ shell script.
    * watch the [Compute Engine VM Instances](https://console.cloud.google.com/compute/instances)
    console to see your list of workers
 
-   * watch the [**StackDriver** cloud logs](https://console.cloud.google.com/logs/query)
-   of your running workers
+   * watch the [Google Cloud Logs Viewer](https://console.cloud.google.com/logs/viewer)
+   of your running workers  
+   (The INFO level will include the big picture for running workers.
+   The DEBUG level will also include the console output and other details for the firetasks.
+   Filter to just your worker nodes with an advanced filter like `resource.labels.instance_id:"fireworker-USER-"`,
+   inserting your $USER name.)
 
    * [open the Fireworks Web GUI](https://materialsproject.github.io/fireworks/basesite_tutorial.html)  
      ```shell script
      lpad webgui
      ````
+
+     **Workaround:** If this command prints an error  
+     `TypeError: cannot pickle '_thread.lock' object`  
+     there's a compatibility problem with FireWorks on Python 3.
+     As a workaround, run
+
+     ```shell script
+     lpad webgui -s
+     ````
+
+     which starts the webgui server without the web browser.
+     It prints the server URL such as [http://127.0.0.1:5000](http://127.0.0.1:5000).
+     Then open a browser to that URL.
+     (Just CMD-click the URL in iTerm.)
 
    * [query your Fireworks tasks and Workflows](https://materialsproject.github.io/fireworks/query_tutorial.html)  
      ```shell script
@@ -205,6 +223,11 @@ shell script.
 [gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse) file mounting tool, and the
 [Storage Browser](https://console.cloud.google.com/storage/browser) in the
 [Google Cloud Platform web console](https://console.cloud.google.com/home/dashboard).
+
+   **Tip:** Use `gsutil -m` to transfer multiple files in parallel.
+   (If it prints `TypeError: cannot pickle...`,
+   configure `gcloud` and `gsutil` to use Python 3.7 per the note in
+   [Install the development tools](docs/install-tools.md).)
 
 
 ## More detail on the Borealis components

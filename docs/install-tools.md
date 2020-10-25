@@ -25,6 +25,27 @@ Also see [Handy Links](handy-links.md).
 
 1. [Install the Cloud SDK](https://cloud.google.com/sdk/install) tools.
 
+1. Setup Python for the `gcloud` and `gsutil` tools.
+
+   **Note:** `gsutil -m` is broken in Python 3.8 so use Python 3.6 or 3.7.
+   ([gsutil issue #961](https://github.com/GoogleCloudPlatform/gsutil/issues/961).)
+
+   Install Python 3.6 or 3.7 if you don't already have one of them, e.g.
+   using `pyenv`:
+
+   ```shell script
+   pyenv install 3.7.9
+   ```
+
+   Set `$CLOUDSDK_PYTHON` in your shell profile:
+
+   ```shell script
+   # Set the Python version for Cloud SDK.
+   export CLOUDSDK_PYTHON=$(pyenv shell 3.7.9; pyenv which python)
+   ```
+
+   Then open a new shell (or run this `export` command).
+
 1. Test the `gcloud` tool by running the shell command:
 
    ```shell script
@@ -48,25 +69,6 @@ Also see [Handy Links](handy-links.md).
 
    (The second part above adds TAB completion to the shell. E.g.
    `gcloud c<TAB>` should show multiple completions.)
-
-   If it prints an error message like `pyenv: python2: command not found`, you might
-   need to install a suitable version of Python and configure `gcloud` to use it.
-
-   Assuming you use `pyenv` to manage Python installations [otherwise, please
-   adapt these steps for your setup]:
-
-   ```shell script
-   pyenv install 2.7.17
-   ```
-
-   then add this to your shell profile:
-
-   ```shell script
-   # Set the Python version for Cloud SDK.
-   export CLOUDSDK_PYTHON=$(pyenv shell 2.7.17; pyenv which python)
-   ```
-
-   Then open a new shell and retest the `gcloud info` command.
 
 1. Run `gcloud components list` to see which components are installed.
 If the `docker-credential-gcr` component is not installed
