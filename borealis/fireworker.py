@@ -82,7 +82,7 @@ def _setup_logging(gce_instance_name, host_name):
     #   and exclude details like the firetask payload console output.
     #
     # To console logs: Filter out messages already printed by handlers on nested
-    # loggers "launchpad" and "rocket.launcher", allowing WARNINGs just in case.
+    # loggers "launchpad" and "rocket.launcher", allowing WARNING just in case.
     root = logging.getLogger()
     fworker_level = logging.DEBUG if gce_instance_name else logging.INFO
     cloud_filter = LogPrefixFilter(
@@ -329,7 +329,7 @@ def cli():
     setup_dir = os.path.join(pkg_dir, 'setup')
 
     parser = argparse.ArgumentParser(
-        description=
+        description=''
             'Run as a FireWorks worker node, launching rockets rapidfire.'
             ' Gets configuration settings from Google Compute Engine (GCE)'
             ' metadata attributes when running on GCE, else from the Launchpad'
@@ -341,7 +341,7 @@ def cli():
              ' host, port, username, and password for the MongoDB connection,'
              ' the idle_for_rockets and idle_for_waiters parameters, etc.'
              ' GCE VM metadata fields take precedence.'.format(
-            DEFAULT_LPAD_YAML))
+                DEFAULT_LPAD_YAML))
     parser.add_argument('-s', '--setup', action='store_true',
         help='Print the path containing the setup files, then'
              ' exit. Useful for finding the server setup files after installing'

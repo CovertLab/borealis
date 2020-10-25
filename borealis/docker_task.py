@@ -293,7 +293,6 @@ class DockerTask(FiretaskBase):
             logger.warning("Couldn't terminate task {} for {}: {}".format(
                 name, reason, e))
 
-
     # ODDITIES ABOUT THE PYTHON DOCKER PACKAGE
     #
     # images.pull() will pull a list of images if neither arg gives a tag. We

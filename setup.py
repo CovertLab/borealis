@@ -5,11 +5,11 @@ with open('README.md', 'r') as fh:
     description = fh.read()
     # Patch the relative links so they'll work on PyPI.
     description2 = re.sub(
-        r'\]\(([\w/.-]+\.png)\)',
+        r']\(([\w/.-]+\.png)\)',
         r'](https://github.com/CovertLab/borealis/raw/master/\1)',
         description)
     long_description = re.sub(
-        r'\]\(([\w/.-]+)\)',
+        r']\(([\w/.-]+)\)',
         r'](https://github.com/CovertLab/borealis/blob/master/\1)',
         description2)
 

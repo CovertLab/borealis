@@ -2,8 +2,8 @@
 #   pyenv install 3.8.6
 #
 #   pyenv virtualenv 3.8.6 fireworker && pyenv local fireworker
-#   pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
-#   pip install -r requirements.txt && pyenv rehash
+#   pip install --use-feature=2020-resolver --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
+#   pip install --use-feature=2020-resolver -r requirements.txt && pyenv rehash
 
 google-cloud-logging>=1.15.0
 google-cloud-storage>=1.28.0
