@@ -128,7 +128,7 @@ echo y | gcloud auth configure-docker
 ## level Image that's common to the team (containing runtime components like
 ## Linux apts, Python, and pips), then preinstalling the runtime Image will
 ## save Docker Image build time as well as task startup time.
-### Example: docker pull python:3.8.3
+### Example: docker pull python:3.8.6
 ### Example: docker pull gcr.io/$(gcloud config get-value core/project)/app-runtime
 
 ## ------------------------------------------------------------------------
@@ -151,10 +151,10 @@ source ~/.bash_aliases
 
 mkdir ~/borealis && cd ~/borealis
 
-pyenv install 3.8.3
+pyenv install 3.8.6
 
-pyenv global 3.8.3
-pyenv local 3.8.3
+pyenv global 3.8.6
+pyenv local 3.8.6
 pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
 
 pyenv virtualenv fireworker
@@ -215,6 +215,12 @@ exit
 ### ------------------------------------------------------------------------
 
 ## MAKE A DISK IMAGE IN THE DISK IMAGE FAMILY "fireworker":
+
+## Start up the service and check its journal for problems:
+sudo systemctl start borealis-fireworker
+sudo journalctl -u borealis-fireworker -f
+
+## Stop the service and the server.
 sudo systemctl stop borealis-fireworker
 sudo shutdown -h now
 
@@ -227,8 +233,10 @@ sudo shutdown -h now
 #   instantiate workers by the Disk Image Family name.
 # * Set "Description" to "Fireworks worker node" or some such for documentation.
 # * Click "Create".
-# * When it finishes, test the Disk Image then delete this GCE VM and its boot
-#   disk using gcloud or the console.
+# * When it finishes:
+#   * Test the Disk Image.
+#   * Delete this GCE VM and its boot disk using gcloud or the console.
+#   * Consider pruning the number of "fireworker-v*" Disk Images to 2 if you have more.
 
 
 ## =========================================================================
@@ -236,7 +244,7 @@ sudo shutdown -h now
 ## First start a VM from this Disk Image using the gce.py script (or use the
 ## GCE console or gcloud command line although they won't append "-0" to the
 ## VM name "fireworker"):
-gce fireworker -m db=default_fireworks_database
+gce fireworker
 
 ## Connect to it:
 gcloud compute ssh fireworker-0
@@ -251,14 +259,14 @@ sudo apt update && sudo apt upgrade && sudo apt autoremove
 ## If you upgraded any apts or if it printed `*** System restart required ***`:
 sudo reboot
 ## ... and wait a few seconds, then reconnect:
-gcloud compute ssh fireworker
+gcloud compute ssh fireworker-0
 sudo systemctl stop borealis-fireworker
 
 ## Trim the service journal.
 sudo journalctl --vacuum-time=2d
 
 ## Pull any Docker images that you want to preload for speed.
-docker pull python:3.8.3  # or similar, including your project's runtime Image
+docker pull python:3.8.6  # or similar, including your project's runtime Image
 
 ## Prune Docker images:
 docker image prune

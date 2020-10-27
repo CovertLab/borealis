@@ -7,12 +7,12 @@ Also see [Handy Links](handy-links.md).
 
 1. Install Python and Fireworks:
 
-   * Install Python: `pyenv install 3.8.2`
+   * Install Python: `pyenv install 3.8.6`
    * Install a Python virtual environment manager like `virtualenv`,
      `pyenv-virtualenv`, and `pyenv-virtualenvwrapper`; or `venv`
    * Create a Python virtual environment in your project directory, e.g.:
      ```shell script
-     pyenv local 3.8.2
+     pyenv local 3.8.6
      pyenv virtualenv myproject
      pyenv local myproject
      ```
