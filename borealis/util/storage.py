@@ -103,6 +103,10 @@ class CloudStorage(object):
         #: A cache of directory placeholders already created or verified.
         self._directory_cache = set()  # type: Set[str]
 
+    def __repr__(self) -> str:
+        return '{}({!r}, {!r})'.format(
+            self.__class__.__name__, self.bucket_name, self.path_prefix)
+
     def clear_directory_cache(self):
         # type: () -> None
         """Clear the cache of directory placeholder names already created."""
