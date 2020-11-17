@@ -91,10 +91,17 @@ local computer will access it at the tunnel's origin `127.0.0.1:27017` or
 See [Building Your Docker Image](docker-build.md).
 
 
+## Setup to authenticate for gcsfuse
+
+If you want to use [gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse),
+you'll need a credentials key file for a Google Cloud service account.
+The steps to get one are in the next section.
+
+
 ## If you want to run Fireworker locally
 
 If you want to run a Fireworker locally on your development computer, you'll
-need a service account private key file to avoid quota warnings and limits.
+need a service account credentials key file to avoid quota warnings and limits.
 (You'll also need to install Docker.)
 
 1. **Prerequisite:** The team (administrator) setup
@@ -104,7 +111,7 @@ these permissions:
     * Logs Writer
     * Storage Object Admin
 
-1. Get a service account private key as a json file and append an `export`
+1. Get a service account credentials key as a json file and append an `export`
 statement to your shell `.profile` or `.bash_profile` file:
 
    ```bash
@@ -112,6 +119,7 @@ statement to your shell `.profile` or `.bash_profile` file:
    FIREWORKER_KEY="${HOME}/bin/fireworker.json"
    gcloud iam service-accounts keys create "${FIREWORKER_KEY}" \
        --iam-account "fireworker@${PROJECT}.iam.gserviceaccount.com"
+   chmod 400 $GOOGLE_APPLICATION_CREDENTIALS  # owner-only since it contains a private key
 
    echo "export GOOGLE_APPLICATION_CREDENTIALS=${FIREWORKER_KEY}" >> ~/.profile
    ```
@@ -121,7 +129,7 @@ statement to your shell `.profile` or `.bash_profile` file:
 1. In a fresh development directory, install Python 3.8, create a Python
 virtual environment, and install the borealis-fireworks pip.
 
-1. Create a `my_launchpad.yaml` file:
+1. Create or augment your `my_launchpad.yaml` file:
 
     ```yaml
     host: localhost
@@ -144,3 +152,7 @@ READY-to-run rockets to appear in the queue or `idle_for_waiters` seconds
 (default 60 * 60, >= idle_for_rockets) for WAITING rockets to become READY,
 that is for queued rockets that are just waiting on other upstream rockets to
 finish.
+
+The `idle_*` fields have defaults so you don't have to add them, but the
+defaults are designed for Compute Engine server nodes which take much longer
+to start and stop.

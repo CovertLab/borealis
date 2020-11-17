@@ -68,3 +68,7 @@
   and running Docker Container Images on your desktop.
 * [gcsfuse](https://github.com/GoogleCloudPlatform/gcsfuse) is a tool for mounting
   GCS buckets onto your computer's file system.
+  It's the easiest and most flexible way to access GCS files.
+  You'll need to [install it](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/installing.md)
+  and
+  [setup to authenticate for gcsfuse](https://github.com/CovertLab/borealis/blob/master/docs/developer-setup.md#setup-to-authenticate-for-gcsfuse).
