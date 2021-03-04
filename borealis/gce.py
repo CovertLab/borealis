@@ -46,6 +46,15 @@ SCOPES = ','.join([
     'trace',                # for debugging
 ])
 
+#: Default options for creating GCE VM instances.
+DEFAULT_INSTANCE_OPTIONS = {
+    'machine-type': 'n1-standard-1',  # n1-standard-1 has 1 vCPU, 3.75 GB RAM
+    'network-tier': 'PREMIUM',
+    'maintenance-policy': 'MIGRATE',
+    'boot-disk-type': 'pd-standard',
+    'scopes': SCOPES,
+}
+
 DEFAULT_LPAD_YAML = 'my_launchpad.yaml'
 
 
@@ -132,9 +141,18 @@ class ComputeEngine(object):
         If `dry_run`, this logs the constructed `gcloud` command instead of
         running it, or if `verbose`, this logs the `gcloud` command before
         running it.
+
+        To allocate a larger VM pass in a different machine-type option such as:
+        command_options={'machine-type'='custom-1-5120'}, or
+        command_options={'machine-type'='n2-standard-2'}.
         """
-        assert 0 <= count <= self.MAX_VMS, 'create-instance count ({}) must be in the range [0 .. {}]'.format(
-            count, self.MAX_VMS)
+        assert 0 <= count, 'negative create-instance count ({})'.format(count)
+        if count > self.MAX_VMS:
+            print('Warning: The GCE create-instance count {} got limited to max'
+                  ' {}. You can use the `gce` command again to create more'
+                  ' instances.'.format(
+                count, self.MAX_VMS))
+            count = self.MAX_VMS
         instance_names = self.make_names(base, count)
 
         self._log_header('Creating', instance_names)
@@ -142,17 +160,12 @@ class ComputeEngine(object):
             return
 
         project = gcp.project()
-        options = {
+        options = dict(DEFAULT_INSTANCE_OPTIONS)
+        options.update({
             'project': project,
             'image-project': project,
             'zone': gcp.zone(),
-            'machine-type': 'n1-standard-1',
-            'subnet': 'default',
-            'network-tier': 'PREMIUM',
-            'maintenance-policy': 'MIGRATE',
-            'boot-disk-type': 'pd-standard',
-            'scopes': SCOPES,
-        }
+        })
         options.update(command_options or {})
 
         metadata_string = _join_metadata(metadata)
