@@ -9,6 +9,7 @@ import logging
 import os
 from pprint import pformat
 import shutil
+import socket
 from threading import Event, Timer
 import time
 from typing import Any, List, Optional
@@ -21,7 +22,7 @@ from docker.utils import parse_repository_tag
 from fireworks import explicit_serialize, FiretaskBase, FWAction
 import requests
 
-from borealis.util import data
+from borealis.util import data, gcp
 import borealis.util.filepath as fp
 import borealis.util.storage as st
 
@@ -339,16 +340,19 @@ class DockerTask(FiretaskBase):
                 errors.append(or_error)
 
         def prologue():
-            return ('{} DockerTask {}\n\n'
+            host_name = gcp.gce_instance_name() or socket.gethostname()
+            return ('{} DockerTask {} on host {}\n\n'
                     '{}\n\n'
                     'Docker Image ID: {}').format(
                 start_timestamp,
                 name,
+                host_name,
                 pformat(self.to_dict()),
                 image.id if image else '---')
 
         def epilogue():
-            return '{} TASK: {}, elapsed {} of timeout parameter {} {}'.format(
+            return '{} {} TASK: {}, elapsed {} of timeout parameter {} {}'.format(
+                data.timestamp(),
                 'FAILED' if errors else 'SUCCESSFUL',
                 name,
                 elapsed,
@@ -401,12 +405,14 @@ class DockerTask(FiretaskBase):
 
                 check(not terminated.is_set(), 'Docker process timeout')
                 check(exit_code == 0, 'Docker process exit code {}{}'.format(
-                    exit_code, ' (SIGKILL)' if exit_code == 137 else ''))
-                container.reload()  # query the Docker daemon for current attrs
-                state = container.attrs.get('State')
-                if isinstance(state, dict):
-                    check(not state.get('OOMKilled'),
-                          'The Docker process ran out of memory (OOMKilled)')
+                    exit_code,
+                    ' (SIGKILL or OUT-OF-MEMORY)' if exit_code == 137 else ''))
+                # Note: container.reload(); container.attrs.get('State') might
+                # be a dict with 'OOMKilled' but it's unreliable.
+                check(exit_code != 137,
+                      'To fix OUT-OF-MEMORY, create GCE VMs with more'
+                      ' `--options machine-type=...` RAM or'
+                      ' `--options custom-memory=...,custom-cpu=...`')
             finally:
                 try:
                     container.remove(force=True)
