@@ -143,12 +143,16 @@ shell script.
    * watch the [Compute Engine VM Instances](https://console.cloud.google.com/compute/instances)
    console to see your list of workers
 
-   * watch the [Google Cloud Logs Viewer](https://console.cloud.google.com/logs/viewer)
-   of your running workers  
-   (The INFO level will include the big picture for running workers.
-   The DEBUG level will also include the console output and other details for the firetasks.
-   Filter to just your worker nodes with an advanced filter like `resource.labels.instance_id:"fireworker-USER-"`,
-   inserting your $USER name.)
+   * watch the [Google Cloud Logs Explorer](https://console.cloud.google.com/logs/)
+     of your running operations.  
+     (Set a Logs query like `resource.labels.instance_id:"fireworker" severity>=INFO` to
+     see just the big picture of Fireworkers and Firetasks starting and stopping.
+     The `:` means "starts with."  
+     Expand the log level to `severity>=DEBUG` to include task stdout and stderr lines.  
+     If coworkers are also running workflows, you can filter to just your own
+     Fireworkers using a query like
+     `resource.labels.instance_id:"fireworker-USER-"`,
+     inserting your $USER name.)
 
    * [open the Fireworks Web GUI](https://materialsproject.github.io/fireworks/basesite_tutorial.html)  
      ```shell script

@@ -16,8 +16,12 @@
   **Tip:** Pin the
   [Compute Engine VM instances](https://console.cloud.google.com/compute/instances),
   [Storage Browser](https://console.cloud.google.com/storage/browser), and
-  [Logging - Logs Viewer](https://console.cloud.google.com/logs/query)
+  [Logging - Logs Explorer](https://console.cloud.google.com/logs/)
   sub-consoles to the top of the ☰ menu.
+
+  **Tip:** Bookmark a [Logs Explorer query](https://console.cloud.google.com/logs/query;query=resource.labels.instance_id:%22fireworker%22%20severity%3E%3DINFO)
+  like this link to the Logs Explorer with a Fireworker query
+  `resource.labels.instance_id:"fireworker" severity>=INFO`
 
 * [GCP documentation](https://cloud.google.com/docs): 
 
