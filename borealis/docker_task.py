@@ -135,14 +135,17 @@ class DockerTask(FiretaskBase):
         repository, tag = parse_repository_tag(self['image'])
         if not tag:
             tag = 'latest'  # 'latest' is the default tag; it doesn't mean squat
-        self._log().debug('Pulling Docker image %s:%s', repository, tag)
+
+        logger = self._log()
+        logger.debug('Pulling Docker image %s:%s', repository, tag)
         try:
             image = docker_client.images.pull(repository, tag)
-            self._log().debug('Pulled Docker image %s', image.id)
+            logger.debug('Pulled Docker image %s', image.id)
         except requests.ConnectionError as e:
             raise DockerTaskError(
-                "Couldn't connect to the Docker server. You might need to"
-                " install one or start it. {!r}".format(e))
+                "Couldn't connect to a Docker server. Install it or start it?"
+                " {!r}".format(e))
+
         return image
 
     def rebase(self, internal_path, new_prefix):
@@ -291,7 +294,7 @@ class DockerTask(FiretaskBase):
             terminated.set()
             logger.warning('Terminated task {} for {}'.format(name, reason))
         except docker_errors.APIError as e:
-            logger.warning("Couldn't terminate task {} for {}: {}".format(
+            logger.warning("Couldn't terminate task {} for {}: {!r}".format(
                 name, reason, e))
 
     # ODDITIES ABOUT THE PYTHON DOCKER PACKAGE
@@ -334,14 +337,15 @@ class DockerTask(FiretaskBase):
         timeout = self.get('timeout', self.DEFAULT_TIMEOUT_SECONDS)
         elapsed = '---'
         logger = self._log()
+        host_name = gcp.gce_instance_name() or socket.gethostname()
+        prefix = self['storage_prefix']
 
         def check(success, or_error):
             if not success:
                 errors.append(or_error)
 
         def prologue():
-            host_name = gcp.gce_instance_name() or socket.gethostname()
-            return ('{} DockerTask {} on host {}\n\n'
+            return ('{} DockerTask: {}, host: {}\n\n'
                     '{}\n\n'
                     'Docker Image ID: {}').format(
                 start_timestamp,
@@ -360,7 +364,8 @@ class DockerTask(FiretaskBase):
                 errors if errors else '')
 
         # 'STARTING TASK:' ... 'FAILED TASK:' or 'SUCCESSFUL TASK:'
-        logger.info('STARTING TASK: %s', name)
+        logger.info('STARTING TASK: %s, host: %s, storage: %s',
+                    name, host_name, prefix)
 
         try:
             docker_client = docker.from_env()
