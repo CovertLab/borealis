@@ -1,5 +1,14 @@
 # Change Log
 
+## v0.8.0
+* Don't rely on Docker's `OOMKilled` status to detect out-of-memory.
+* On out-of-memory, say how to allocate VMs with more RAM.
+* Log more context info like the host name, completion timestamp.
+* Instead of `AssertionError` for trying to create more VMs than the max, just limit it and print a warning.
+* In `gce`, don't set the `subnet` default option so it won't clash with `-o network-interface=no-address` which creates a VM no External IP address.
+  Fireworkers without an External IP are more secure and save money, but you'll want to set up Cloud NAT so they can access Docker repositories and Identity Aware Proxy (IAP) so you can ssh in.
+* Update docs since the Cloud Console Logs Explorer replacing the Logs Viewer.
+
 ## v0.7.0
 * Log fireworker & firetask start/end at the INFO rather than WARNING level.
 Log task console output and other details at the DEBUG level.

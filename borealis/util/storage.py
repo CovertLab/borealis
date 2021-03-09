@@ -74,6 +74,7 @@ class CloudStorage(object):
 
     #: For efficiency, retrieve just these Blob metadata fields.
     #: https://cloud.google.com/storage/docs/json_api/v1/how-tos/performance
+    #: Needs 'nextPageToken' to iterate through all the entries.
     FIELDS = 'items(bucket,name,id,generation,size),nextPageToken'
 
     def __init__(self, storage_prefix):
