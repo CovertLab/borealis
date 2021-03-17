@@ -2,8 +2,6 @@
 files from Google Cloud Storage (GCS) and pushing output files to GCS.
 """
 
-from __future__ import absolute_import, division, print_function
-
 from collections import namedtuple
 import logging
 import os

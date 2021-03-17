@@ -1,7 +1,5 @@
 """Google Cloud Platform utilities."""
 
-from __future__ import absolute_import, division, print_function
-
 import errno
 import logging
 import requests

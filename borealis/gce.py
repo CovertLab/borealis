@@ -17,18 +17,10 @@ like "{prefix}-0", "{prefix}-1", "{prefix}-2", ...
     gce grace-wcm -c3 --set -m quit=soon
 """
 
-from __future__ import absolute_import, division, print_function
-
 import argparse
-import os
 from pprint import pprint
 import re
-import sys
-
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess
-else:
-    import subprocess
+import subprocess
 
 from borealis.util import data
 from borealis.util import gcp

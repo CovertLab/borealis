@@ -1,7 +1,5 @@
 """Interface to Google Cloud Storage (GCS)."""
 
-from __future__ import absolute_import, division, print_function
-
 import logging
 import os
 from typing import Iterator, List, Optional, Set

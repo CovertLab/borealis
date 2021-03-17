@@ -1,14 +1,13 @@
 ## Create the "fireworker" python virtual environment and select it in this directory:
-#   pyenv install 3.8.6
+#   pyenv install 3.8.7
 #
-#   pyenv virtualenv 3.8.6 fireworker && pyenv local fireworker
+#   pyenv virtualenv 3.8.7 fireworker && pyenv local fireworker
 #   pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
-#   pip install --use-feature=2020-resolver -r requirements.txt && pyenv rehash
+#   pip install -r requirements.txt && pyenv rehash
 
-google-cloud-logging>=1.15.0
+google-cloud-logging>=2.0.0
 google-cloud-storage>=1.28.0
 docker>=4.2.0
 FireWorks>=1.9.5
 requests>=2.23.0
 ruamel.yaml>=0.16.9
-subprocess32>=3.5.4

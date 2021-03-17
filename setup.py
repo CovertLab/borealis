@@ -29,7 +29,7 @@ setup(
     description='Run FireWorks workflows in Google Cloud',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
+    python_requires='>=3.8, <4',
     install_requires=[
         'google-cloud-logging>=1.14.0',
         'google-cloud-storage>=1.28.0',
@@ -37,7 +37,6 @@ setup(
         'FireWorks>=1.9.5',
         'requests>=2.22.0',
         'ruamel.yaml>=0.16.9',
-        'subprocess32>=3.5.4',
     ],
     package_data={
         'borealis': ['setup/*'],
@@ -57,11 +56,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
     keywords='fireworks workflow',

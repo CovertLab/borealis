@@ -14,8 +14,6 @@ console, set the `PYTHONUNBUFFERED=1` environment variable or run with
 than buffering up into long delayed chunks.
 """
 
-from __future__ import absolute_import, division, print_function
-
 import argparse
 import logging
 import os
@@ -26,8 +24,10 @@ from typing import Any, Dict, Optional
 
 from fireworks import LaunchPad, FWorker, fw_config
 from fireworks.core import rocket_launcher
+# noinspection PyPackageRequirements
 import google.cloud.logging as gcl
-from google.cloud.logging.resource import Resource
+# noinspection PyPackageRequirements
+from google.cloud.logging import Resource
 import ruamel.yaml as yaml
 
 from borealis.util import gcp

@@ -1,7 +1,5 @@
 """Data utilities."""
 
-from __future__ import absolute_import, division, print_function
-
 import datetime
 from typing import Any, Dict, Iterable, Mapping, Optional
 

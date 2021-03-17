@@ -1,15 +1,9 @@
 """File and path utilities."""
 
-from __future__ import absolute_import, division, print_function
-
 import errno
 import logging
 import os
-import sys
-if os.name == 'posix' and sys.version_info[0] < 3:
-    import subprocess32 as subprocess
-else:
-    import subprocess
+import subprocess
 from typing import Optional, Sequence, Tuple
 
 
@@ -60,7 +54,7 @@ def run_cmd2(tokens, trim=True, timeout=TIMEOUT):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=True,
-        universal_newlines=True,
+        encoding='utf-8',
         timeout=timeout)
     if trim:
         return out.stdout.rstrip(), out.stderr.rstrip()
