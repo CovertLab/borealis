@@ -86,7 +86,7 @@ def instance_metadata(field, default=None):
     try:
         r = requests.get(url, headers=headers, timeout=timeout)
         return r.text if r.status_code == 200 else default
-    except requests.exceptions.RequestException as _:
+    except requests.exceptions.RequestException:
         return default
 
 

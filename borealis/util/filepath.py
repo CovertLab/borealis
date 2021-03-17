@@ -1,6 +1,5 @@
 """File and path utilities."""
 
-import errno
 import logging
 import os
 import subprocess
@@ -21,13 +20,8 @@ def makedirs(path, *paths):
     """
     full_path = os.path.join(path, *paths)
 
-    try:
-        if full_path:
-            os.makedirs(full_path)
-    except OSError as e:
-        if e.errno != errno.EEXIST or not os.path.isdir(full_path):
-            raise
-
+    if full_path:
+        os.makedirs(full_path, exist_ok=True)
     return full_path
 
 
@@ -85,6 +79,6 @@ def run_cmdline(line, trim=True, timeout=TIMEOUT):
     """
     try:
         return run_cmd(tokens=line.split(), trim=trim, timeout=timeout)
-    except (OSError, subprocess.SubprocessError) as _:
+    except (OSError, subprocess.SubprocessError):
         logging.exception('Failed to run command line: %s', line)
         return None

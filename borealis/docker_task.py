@@ -234,7 +234,7 @@ class DockerTask(FiretaskBase):
 
                         if hr:
                             f.write('{}\n\n{}\n'.format(hr, epilogue))
-                except IOError as _:
+                except IOError:
                     self._log().exception('Error capturing to %s', out.local)
 
             if success or out.captures == '>>':
@@ -419,7 +419,7 @@ class DockerTask(FiretaskBase):
             finally:
                 try:
                     container.remove(force=True)
-                except docker_errors.APIError as _:  # troubling but not a task error
+                except docker_errors.APIError:  # troubling but not a task error
                     logger.exception('Error removing the Docker Container')
 
             to_push = self._outputs_to_push(

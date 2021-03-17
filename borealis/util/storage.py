@@ -108,6 +108,10 @@ class CloudStorage(object):
         return '{}({!r}, {!r})'.format(
             self.__class__.__name__, self.bucket_name, self.path_prefix)
 
+    def url(self, *path_elements: str) -> str:
+        """Return a gs:// URL for the given path relative to the storage_prefix."""
+        return os.path.join('gs://', self.bucket_name, self.path_prefix, *path_elements)
+
     def clear_directory_cache(self):
         # type: () -> None
         """Clear the cache of directory placeholder names already created."""
@@ -136,7 +140,8 @@ class CloudStorage(object):
                 fields.
         """
         prefix = os.path.join(self.path_prefix, prefix)
-        iterator = self.bucket.list_blobs(
+        iterator = self.client.list_blobs(
+            self.bucket,
             prefix=prefix,
             fields=self.FIELDS,
             delimiter=os.sep if star else None,
@@ -163,9 +168,9 @@ class CloudStorage(object):
                     # if_generation_match=0: upload if absent, fail if present.
                     blob.upload_from_string(
                         b'', content_type=OCTET_STREAM, if_generation_match=0)
-                except PreconditionFailed as _:  # the blob is already present
+                except PreconditionFailed:  # the blob is already present
                     pass
-                except GoogleCloudError as _:
+                except GoogleCloudError:
                     # Failing to create a dir placeholder will affect gcsfuse
                     # mounts but won't break the workflow.
                     logging.exception('Failed to make GCS dir "%s"', dir_name)
@@ -184,7 +189,7 @@ class CloudStorage(object):
 
             blob = self.bucket.blob(full_path)
             blob.upload_from_filename(local_path)  # guesses content_type from the path
-        except (GoogleCloudError, OSError) as _:
+        except (GoogleCloudError, OSError):
             logging.exception(
                 'Failed to upload "%s" as GCS "%s"', local_path, full_path)
             return False
@@ -232,7 +237,7 @@ class CloudStorage(object):
 
         try:
             blob.download_to_filename(local_path)
-        except GoogleCloudError as _:
+        except GoogleCloudError:
             logging.exception(
                 'Failed to download GCS "%s" as "%s"', blob.name, local_path)
             return False
