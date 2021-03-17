@@ -6,7 +6,9 @@ import logging
 import os
 from typing import Iterator, List, Optional, Set
 
+# noinspection PyPackageRequirements
 from google.cloud.storage import Blob, Client
+# noinspection PyPackageRequirements
 from google.cloud.exceptions import GoogleCloudError, PreconditionFailed
 
 import borealis.util.filepath as fp
@@ -113,14 +115,34 @@ class CloudStorage(object):
         """Clear the cache of directory placeholder names already created."""
         self._directory_cache = set()
 
-    def list_blobs(self, prefix=''):
-        # type: (str) -> Iterator[Blob]
-        """List Blobs with the given prefix string (which needn't be a
-        "directory" name, and it's relative to the storage_prefix), requesting a
-        subset of fields for efficiency. Return a Blob Iterator.
+    def list_blobs(self, prefix='', star=False):
+        # type: (str, bool) -> Iterator[Blob]
+        """List Blobs that have the given prefix string with optional '*' glob.
+
+        Arguments:
+            prefix: A pathname prefix appended to storage_prefix. It needn't be
+                a whole "subdirectory" name; it's just a prefix.
+
+            star: Match the glob pattern "prefix*" within one "directory" level,
+                as if GCS had directories.
+
+                `*` matches 0 or more characters up through a `/`, naming
+                stored Blobs and virtual "subdirectories" that are prefixes for
+                Blob names.
+
+                If `prefix` ends with a '/', this will list it (if it exists as
+                a "dir") along with its immediate "files" and "subdirs".
+
+        Returns:
+            a Blob Iterator. For speed, each Blob has a subset of the possible
+                fields.
         """
         prefix = os.path.join(self.path_prefix, prefix)
-        iterator = self.bucket.list_blobs(prefix=prefix, fields=self.FIELDS)
+        iterator = self.bucket.list_blobs(
+            prefix=prefix,
+            fields=self.FIELDS,
+            delimiter=os.sep if star else None,
+            include_trailing_delimiter=True if star else None)
         return iterator
 
     def make_dirs(self, sub_path):
