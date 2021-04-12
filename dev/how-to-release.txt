@@ -1,0 +1,14 @@
+How to do a borealis-fireworks pip release
+
+# update changes.md
+# update the setup.py version
+
+git add .
+git commit
+
+V1='0.8.0'
+git tag -a -m "release $V1" "$V1" && git push && git push --tags
+
+./make-package.sh && twine upload dist/*
+
+open https://pypi.org/project/borealis-fireworks/

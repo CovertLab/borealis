@@ -31,7 +31,7 @@ setup(
     long_description_content_type='text/markdown',
     python_requires='>=3.8, <4',
     install_requires=[
-        'google-cloud-logging>=1.14.0',
+        'google-cloud-logging>=2.0.0',
         'google-cloud-storage>=1.28.0',
         'docker>=4.1.0',
         'FireWorks>=1.9.5',
@@ -56,7 +56,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.8',
     ],
     keywords='fireworks workflow',

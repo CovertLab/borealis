@@ -43,6 +43,8 @@
 #       Disk Image.]
 #     Boot disk: New 200 GB Standard persistent disk, Ubuntu 20.04 LTS Minimal
 #       (or later).
+#       (TODO: Test Debian. Since it doesn't use snap, it might be able to update
+#       gcloud easily.)
 #       [Your needs might differ. You can resize it later but changing the OS
 #       image requires creating a new Disk Image from scratch. Do NOT pick "COS"
 #       Container-Optimized OS. COS doesn't have a package manager and is not
@@ -128,7 +130,7 @@ echo y | gcloud auth configure-docker
 ## level Image that's common to the team (containing runtime components like
 ## Linux apts, Python, and pips), then preinstalling the runtime Image will
 ## save Docker Image build time as well as task startup time.
-### Example: docker pull python:3.8.6
+### Example: docker pull python:3.8.9
 ### Example: docker pull gcr.io/$(gcloud config get-value core/project)/app-runtime
 
 ## ------------------------------------------------------------------------
@@ -151,10 +153,10 @@ source ~/.bash_aliases
 
 mkdir ~/borealis && cd ~/borealis
 
-pyenv install 3.8.6
+pyenv install 3.8.9
 
-pyenv global 3.8.6
-pyenv local 3.8.6
+pyenv global 3.8.9
+pyenv local 3.8.9
 pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
 
 pyenv virtualenv fireworker
@@ -266,7 +268,7 @@ sudo systemctl stop borealis-fireworker
 sudo journalctl --vacuum-time=2d
 
 ## Pull any Docker images that you want to preload for speed.
-docker pull python:3.8.6  # or similar, including your project's runtime Image
+docker pull python:3.8.9  # or similar, including your project's runtime Image
 
 ## Prune Docker images:
 docker image prune

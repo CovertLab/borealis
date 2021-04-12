@@ -39,6 +39,8 @@ SCOPES = ','.join([
 ])
 
 #: Default options for creating GCE VM instances.
+# Don't set 'subnet': 'default' since that'd interferece with the
+# `-o network-interface=no-address` option to create VMs no External IP address.
 DEFAULT_INSTANCE_OPTIONS = {
     'machine-type': 'n1-standard-1',  # n1-standard-1 has 1 vCPU, 3.75 GB RAM
     'network-tier': 'PREMIUM',
@@ -143,7 +145,7 @@ class ComputeEngine(object):
             print('Warning: The GCE create-instance count {} got limited to max'
                   ' {}. You can use the `gce` command again to create more'
                   ' instances.'.format(
-                count, self.MAX_VMS))
+                count, self.MAX_VMS))  # the max is to avoid expensive accidents
             count = self.MAX_VMS
         instance_names = self.make_names(base, count)
 
@@ -302,7 +304,8 @@ def cli():
 
     if args.launchpad_filename and args.action == 'create':
         with open(args.launchpad_filename) as f:
-            lpad_config = yaml.safe_load(f)  # type: dict
+            yml = yaml.YAML(typ='safe')
+            lpad_config = yml.load(f)  # type: dict
             lpad_config['db'] = lpad_config.get('name')
         metadata = data.select_keys(lpad_config, ('db', 'username', 'password'))
 

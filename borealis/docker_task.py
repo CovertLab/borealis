@@ -413,9 +413,15 @@ class DockerTask(FiretaskBase):
                 # Note: container.reload(); container.attrs.get('State') might
                 # be a dict with 'OOMKilled' but it's unreliable.
                 check(exit_code != 137,
-                      'To fix OUT-OF-MEMORY, create GCE VMs with more'
-                      ' `--options machine-type=...` RAM or'
-                      ' `--options custom-memory=...,custom-cpu=...`')
+                      'To fix OUT-OF-MEMORY, create GCE VMs with more RAM via'
+                      ' `--options machine-type=...` or'
+                      ' `--options custom-memory=...,custom-cpu=...`, or'
+                      ' enable swap space in the Fireworker disk image.'
+                      ' Then you can run a command such as'
+                      ' `lpad rerun_fws -i <FW_IDS>` or'
+                      ' `lpad rerun_fws -s FIZZLED` to make the failed tasks'
+                      ' run again. (You might need to start up Fireworker VMs'
+                      ' to run those tasks.)')
             finally:
                 try:
                     container.remove(force=True)

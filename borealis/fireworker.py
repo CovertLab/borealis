@@ -77,7 +77,7 @@ def _setup_logging(gce_instance_name, host_name):
 
     # To StackDriver cloud logs (which aggregate all machines):
     # * For workers on GCE, log at the DEBUG level to aid remote debugging.
-    #   People can set the Logs Viewer to INFO level to be less verbose.
+    #   People can set the Logs Explorer to INFO level to be less verbose.
     # * For other workers, log at the INFO level to include start/end messages
     #   and exclude details like the firetask payload console output.
     #
@@ -278,7 +278,8 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
         FW_CONSOLE_LOGGER.debug('Reading launchpad config "{}"'.format(
             launchpad_filename))
         with open(launchpad_filename) as f:
-            lpad_config = yaml.safe_load(f)  # type: dict
+            yml = yaml.YAML(typ='safe')
+            lpad_config = yml.load(f)  # type: dict
 
         metadata_else_config('db', DEFAULT_FIREWORKS_DATABASE, 'name')
         metadata_else_config('username')

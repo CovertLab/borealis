@@ -79,6 +79,7 @@ def instance_metadata(field, default=None):
     They can be set or changed on a running instance:
     `gcloud compute instances add-metadata INSTANCE-NAME --metadata quit=when-idle`
     """
+    # noinspection HttpUrlsUsage
     url = "http://metadata.google.internal/computeMetadata/v1/instance/{}".format(field)
     headers = {'Metadata-Flavor': 'Google'}
     timeout = 5  # seconds

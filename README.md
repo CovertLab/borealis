@@ -159,19 +159,21 @@ shell script.
      lpad webgui
      ````
 
-     **Workaround:** If this command prints an error  
+     **Bug:** If the `lpad webgui` command prints an error  
      `TypeError: cannot pickle '_thread.lock' object`  
-     there's a compatibility problem with FireWorks on Python 3.
-     As a workaround, run
+     that means you hit a compatibility problem with FireWorks on Python 3.
 
+     **Fix:** Upgrade to `fireworks>=1.9.7`.
+
+     **Workaround:** If you can't update fireworks, then run
      ```shell script
      lpad webgui -s
      ````
 
-     which starts the webgui server without the web browser.
-     It prints the server URL such as [http://127.0.0.1:5000](http://127.0.0.1:5000).
-     Then open a browser to that URL.
-     (Just CMD-click the URL in iTerm.)
+     which starts the web server without the web browser, and manually
+     open a browser to the web server URL that it prints,
+     such as [http://127.0.0.1:5000](http://127.0.0.1:5000).
+     (In iTerm, just CMD-click the URL.)
 
    * [query your Fireworks tasks and Workflows](https://materialsproject.github.io/fireworks/query_tutorial.html)  
      ```shell script
