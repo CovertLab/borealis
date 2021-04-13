@@ -40,7 +40,8 @@ SCOPES = ','.join([
 
 #: Default options for creating GCE VM instances.
 # Don't put 'subnet': 'default' here since that'd interfere with the
-# `-o network-interface=no-address` option to create VMs no External IP address.
+# `-o network-interface=no-address` option that creates VMs without
+# External IP addresses.
 DEFAULT_INSTANCE_OPTIONS = {
     'machine-type': 'n1-standard-1',  # n1-standard-1 has 1 vCPU, 3.75 GB RAM
     'network-tier': 'PREMIUM',
@@ -295,7 +296,13 @@ def cli():
                  ' `gcloud compute instances create`, e.g. "boot-disk-size",'
                  ' "custom-cpu", "custom-memory", "machine-type", "scopes",'
                  ' "service-account". These options override default options'
-                 ' and the --family argument. Options like `project` default to'
+                 ' and the --family argument.'
+                 ' Use "network-interface=no-address" to create VMs without'
+                 ' External IP addresses. That makes them more secure but'
+                 ' you\'ll need to set up Cloud NAT (so they can access Docker'
+                 ' repositories, PyPI, ...) and Identity-Aware Proxy (IAP)'
+                 ' (so you can ssh in).'
+                 ' Options like `project` default to'
                  ' your current gcloud configuration.')
 
     args = parser.parse_args()
