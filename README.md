@@ -365,6 +365,6 @@ the [Developer Setup](docs/developer-setup.md) steps.
 
 See [Building Your Docker Image](docs/docker-build.md).
 
-See [Change Summary aka Release Notes](docs/changes.md).
+See [Change Log (aka Release Notes)](docs/changes.md).
 
 Also see [Handy Links](docs/handy-links.md).
