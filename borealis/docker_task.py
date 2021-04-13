@@ -404,7 +404,8 @@ class DockerTask(FiretaskBase):
                     ' (SIGKILL or OUT-OF-MEMORY)' if exit_code == 137 else ''))
                 # Note: container.reload(); container.attrs.get('State') might
                 # be a dict with 'OOMKilled' but it's unreliable.
-                check(exit_code != 137 or terminated.is_set(),
+                not_out_of_memory = exit_code != 137 or terminated.is_set()
+                check(not_out_of_memory,
                       'To fix OUT-OF-MEMORY, create GCE VMs with more RAM via'
                       ' `--options machine-type=...` or'
                       ' `--options custom-memory=...,custom-cpu=...`, or'
