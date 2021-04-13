@@ -404,11 +404,12 @@ class DockerTask(FiretaskBase):
                     ' (SIGKILL or OUT-OF-MEMORY)' if exit_code == 137 else ''))
                 # Note: container.reload(); container.attrs.get('State') might
                 # be a dict with 'OOMKilled' but it's unreliable.
-                check(exit_code != 137,
+                check(exit_code != 137 or terminated.is_set(),
                       'To fix OUT-OF-MEMORY, create GCE VMs with more RAM via'
                       ' `--options machine-type=...` or'
                       ' `--options custom-memory=...,custom-cpu=...`, or'
-                      ' enable swap space in the Fireworker disk image.'
+                      ' enable swap space in the Fireworker disk image, or (you'
+                      ' know) make the Firetask more memory efficient.'
                       ' Then you can run a command such as'
                       ' `lpad rerun_fws -i <FW_IDS>` or'
                       ' `lpad rerun_fws -s FIZZLED` to make the failed tasks'

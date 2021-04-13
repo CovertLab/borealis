@@ -39,7 +39,7 @@ SCOPES = ','.join([
 ])
 
 #: Default options for creating GCE VM instances.
-# Don't set 'subnet': 'default' since that'd interferece with the
+# Don't put 'subnet': 'default' here since that'd interfere with the
 # `-o network-interface=no-address` option to create VMs no External IP address.
 DEFAULT_INSTANCE_OPTIONS = {
     'machine-type': 'n1-standard-1',  # n1-standard-1 has 1 vCPU, 3.75 GB RAM
@@ -140,12 +140,11 @@ class ComputeEngine(object):
         command_options={'machine-type'='custom-1-5120'}, or
         command_options={'machine-type'='n2-standard-2'}.
         """
-        assert 0 <= count, 'negative create-instance count ({})'.format(count)
+        assert 0 <= count, f'negative GCE create-instance count ({count})'
         if count > self.MAX_VMS:
-            print('Warning: The GCE create-instance count {} got limited to max'
-                  ' {}. You can use the `gce` command again to create more'
-                  ' instances.'.format(
-                count, self.MAX_VMS))  # the max is to avoid expensive accidents
+            print(f'WARNING: Limited the GCE create-instance count ({count}) to'
+                  f' {self.MAX_VMS} to avoid an expensive accident. If/when you'
+                  f' need more instances, run the `gce` command again.')
             count = self.MAX_VMS
         instance_names = self.make_names(base, count)
 
