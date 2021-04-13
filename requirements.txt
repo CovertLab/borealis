@@ -5,9 +5,13 @@
 #   pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
 #   pip install -r requirements.txt && pyenv rehash
 
+# Direct dependents
 google-cloud-logging>=2.3.1
 google-cloud-storage>=1.37.1
 docker>=5.0.0
 FireWorks>=1.9.6
 requests>=2.25.1
 ruamel.yaml>=0.17.4
+
+# Dev tools
+twine

@@ -49,6 +49,9 @@
 #       image requires creating a new Disk Image from scratch. Do NOT pick "COS"
 #       Container-Optimized OS. COS doesn't have a package manager and is not
 #       built to install software.]
+#     Network interfaces: You can set External IP to None for better security, as
+#       long as you set up Identity-Aware Proxy (IAP) set up to be able to ssh to
+#       these VMs and Cloud NAT so these VMs can access PyPI, Docker repos, etc.
 #     Identity and API access: "Compute Engine default service account" or
 #       the "fireworker" service account.
 #     Access scopes: "Set access for each API":
@@ -168,6 +171,9 @@ pyenv rehash
 SETUP=$(fireworker --setup)
 echo The borealis-fireworker "setup" files are in: $SETUP
 
+## Install the pip versions selected for borealis-fireworks which might be different.
+pip install -r ${SETUP}/requirements.txt
+
 ## Copy the launchpad yaml file from the borealis setup directory.
 cp ${SETUP}/example_my_launchpad.yaml my_launchpad.yaml
 
@@ -227,7 +233,7 @@ sudo systemctl stop borealis-fireworker
 sudo shutdown -h now
 
 # * Watch the Compute Engine > VM instances page to see when this VM has fully stopped.
-# * Click on the disk "fireworker" in the Compute Engine > Disks console page.
+# * Click the disk "fireworker" (or "fireworker-0") in the Compute Engine > Disks console page.
 #   https://console.cloud.google.com/compute/disks
 # * Click "CREATE IMAGE".
 # * Name the image like "fireworker-v0", picking the next number in the fireworker series.
@@ -276,7 +282,8 @@ docker image prune
 ## Update the fireworker pips:
 sudo su -l fireworker
 cd ~/borealis
-pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel borealis-fireworks
+pip install --upgrade pip setuptools wheel borealis-fireworks
+pip install -r $(fireworker --setup)/requirements.txt
 pyenv rehash
 
 ## Disconnect:
