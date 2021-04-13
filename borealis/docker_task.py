@@ -343,23 +343,15 @@ class DockerTask(FiretaskBase):
                 errors.append(or_error)
 
         def prologue():
-            return ('{} DockerTask: {}, host: {}\n\n'
-                    '{}\n\n'
-                    'Docker Image ID: {}').format(
-                start_timestamp,
-                name,
-                host_name,
-                pformat(self.to_dict()),
-                image.id if image else '---')
+            return (f'{start_timestamp} DockerTask: {name}, host: {host_name}\n\n'
+                    f'{pformat(self.to_dict())}\n\n'
+                    f'Docker Image ID: {image.id if image else "---"}')
 
         def epilogue():
-            return '{} {} TASK: {}, elapsed {} of timeout parameter {} {}'.format(
-                data.timestamp(),
-                'FAILED' if errors else 'SUCCESSFUL',
-                name,
-                elapsed,
-                data.format_duration(timeout),
-                errors if errors else '')
+            return (f'{data.timestamp()}'
+                    f' {"FAILED" if errors else "SUCCESSFUL"} TASK: {name},'
+                    f' elapsed {elapsed} of timeout parameter {data.format_duration(timeout)}'
+                    f' {errors if errors else ""}')
 
         # 'STARTING TASK:' ... 'FAILED TASK:' or 'SUCCESSFUL TASK:'
         logger.info('STARTING TASK: %s, host: %s, storage: %s',
