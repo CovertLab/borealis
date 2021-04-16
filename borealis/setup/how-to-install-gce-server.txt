@@ -229,7 +229,8 @@ exit
 ## Start up the service and check its journal for problems:
 sudo systemctl start borealis-fireworker
 sudo journalctl -u borealis-fireworker -f
-## Then hit ^C to stop following the journal.
+  ## Then hit ^C to stop viewing the journal.
+sudo systemctl enable borealis-fireworker
 
 ## Stop the service and the server.
 sudo systemctl stop borealis-fireworker

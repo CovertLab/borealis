@@ -5,7 +5,6 @@ How to do a borealis-fireworks pip release
 # Update the borealis-fireworks release version number in:
 #   setup.py
 #   changes.md
-#   borealis/setup/requirements.txt
 #   V1 shell variable, below
 
 # Consider updating borealis/setup/requirements.txt, but don't
@@ -13,7 +12,7 @@ How to do a borealis-fireworks pip release
 
 # Merge changes to the main branch.
 
-V1='0.8.0'
+V1='0.9.0'
 git tag -a -m "release $V1" "$V1" && git push && git push --tags
 
 ./make-package.sh && twine upload dist/*

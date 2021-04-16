@@ -1,5 +1,11 @@
 # Change Log
 
+## v0.9.0
+* Let the GCE VM metadata override the MongoDB host, including is_uri mode.
+* Add gce.py help text for using the `-o network-interface=no-address` option to creates VMs without External IP addresses.
+* Update to Fireworks 1.9.7.
+* Improve the how-to docs.
+
 ## v0.8.0
 * Make Python 3.8 the minimum version.
 * Require google-cloud-logging>=2.0.0 which changed the API. We recommend other pip updates, esp. FireWorks>=1.9.7 which fixes the `lpad webgui` bug on Python 3.8+ on macOS.

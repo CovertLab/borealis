@@ -36,7 +36,7 @@ from borealis.util.log_filter import LogPrefixFilter
 #: The default launchpad config filename (in CWD) to read.
 #: GCE instance metadata will override some field values.
 DEFAULT_LPAD_YAML = 'my_launchpad.yaml'
-DEFAULT_FIREWORKS_DATABASE = 'default_fireworks_database'
+DEFAULT_FIREWORKS_DATABASE = 'fireworks'  # per the LaunchPad constructor
 DEFAULT_IDLE_FOR_WAITERS = 60 * 60  # seconds
 DEFAULT_IDLE_FOR_ROCKETS = 15 * 60  # seconds
 
@@ -222,6 +222,8 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
     Get initialization configuration settings from GCE VM metadata fields (when
     on GCE):
         name - the Fireworker name
+        attributes/host - MongoDB server host name or URI
+        attributes/uri_mode - whether the host is a URI
         attributes/db - DB name (user-specific or workflow-specific)
         attributes/username - DB username
         attributes/password - DB password
@@ -231,14 +233,15 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
             to become READY (for queued rockets that are waiting on other
             rockets; default 60 minutes; >= idle_for_rockets)
     else from the launchpad yaml file named by the `launchpad_filename` arg:
-        DB host, DB port - for the MongoDB connection
+        DB host, uri_mode, DB port - for the MongoDB connection
         DB name
         DB username, DB password - null for no user authentication
         logdir, strm_lvl, ... - for "launchpad" & "rocket" logging
         idle_for_rockets, idle_for_waiters
     with fallbacks:
         name - the network hostname
-        DB host, DB port - localhost:27017 (Fireworks defaults)
+        DB host, DB port, uri_mode - localhost:27017, False (Fireworks defaults)
+        uri_mode - False
         DB name - DEFAULT_FIREWORKS_DATABASE
         DB username, DB password - null
         logdir, strm_lvl - FireWorks defaults
@@ -253,19 +256,21 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
     or stop as soon as it finishes the current rocket:
         gcloud compute instances add-metadata INSTANCE-NAME --metadata quit=soon
     """
-    def metadata_else_config(attribute, default=None, config_key=None):
-        # type: (str, Any, Optional[str]) -> Any
+    def metadata_else_config(attribute, default=None, config_key=None, bool_val=False):
+        # type: (str, Any, Optional[str], bool) -> Any
         """Put a GCE metadata attribute, or else a keyed `lpad_config` value
         (`config_key` defaults to `attribute`), or else the default into
         `lpad_config[config_key]`.
         Attributes are always strings. They can be absent but they can't be
-        `None` or a number, so treat '' like absent.
+        `None`, a boolean, or a number, so treat '' like absent.
         Config values can be `None` (`null` in YAML) or a number, so let any
         value override the default.
         """
         config_key = config_key or attribute
-        value = (gcp.instance_attribute(attribute)
-                 or lpad_config.get(config_key, default))
+        value = gcp.instance_attribute(attribute)
+        if bool_val:
+            value = isinstance(value, str) and value.lower() == 'true'
+        value = value or lpad_config.get(config_key, default)
         lpad_config[config_key] = value
 
     exit_code = ERROR_EXIT_CODE
@@ -281,6 +286,8 @@ def main(development=False, launchpad_filename=DEFAULT_LPAD_YAML):
             yml = yaml.YAML(typ='safe')
             lpad_config = yml.load(f)  # type: dict
 
+        metadata_else_config('host')
+        metadata_else_config('uri_mode', bool_val=True)
         metadata_else_config('db', DEFAULT_FIREWORKS_DATABASE, 'name')
         metadata_else_config('username')
         metadata_else_config('password')
