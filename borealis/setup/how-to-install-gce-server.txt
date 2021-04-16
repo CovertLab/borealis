@@ -41,10 +41,12 @@
 #     Machine family/series: N1 n1-standard-1 [or other. These steps create a
 #       Disk Image. Later you can instantiate different machine types from this
 #       Disk Image.]
+#     (TODO: Since this no longer needs docker-credential-gcr, try starting with
+#       a GCE Debian disk image and dropping the steps that reinstall the gcloud
+#       SDK with docker-credential-gcr. Debian should be lighter weight and
+#       easier to enable swap space if needed.)
 #     Boot disk: New 200 GB Standard persistent disk, Ubuntu 20.04 LTS Minimal
 #       (or later).
-#       (TODO: Test Debian. Since it doesn't use snap, it might be able to update
-#       gcloud easily.)
 #       [Your needs might differ. You can resize it later but changing the OS
 #       image requires creating a new Disk Image from scratch. Do NOT pick "COS"
 #       Container-Optimized OS. COS doesn't have a package manager and is not
@@ -227,6 +229,7 @@ exit
 ## Start up the service and check its journal for problems:
 sudo systemctl start borealis-fireworker
 sudo journalctl -u borealis-fireworker -f
+## Then hit ^C to stop following the journal.
 
 ## Stop the service and the server.
 sudo systemctl stop borealis-fireworker
@@ -250,8 +253,8 @@ sudo shutdown -h now
 ## =========================================================================
 ## TO UPDATE THIS DISK IMAGE IN THE FUTURE
 ## First start a VM from this Disk Image using the gce.py script (or use the
-## GCE console or gcloud command line although they won't append "-0" to the
-## VM name "fireworker"):
+## GCE console or gcloud command line to create a VM "fireworker-0" from the
+## Disk Image Family "fireworker"):
 gce fireworker
 
 ## Connect to it:
@@ -274,7 +277,7 @@ sudo systemctl stop borealis-fireworker
 sudo journalctl --vacuum-time=2d
 
 ## Pull any Docker images that you want to preload for speed.
-docker pull python:3.8.9  # or similar, including your project's runtime Image
+docker pull python:3.8.9  # or similar image(s) including your project's runtime Image
 
 ## Prune Docker images:
 docker image prune

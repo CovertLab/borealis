@@ -1,7 +1,6 @@
 # Direct requirements
-borealis-fireworks==0.8.0
 docker==5.0.0
-FireWorks==1.9.6
+FireWorks==1.9.7
 google-cloud-logging==2.3.1
 google-cloud-storage==1.37.1
 requests==2.25.1
