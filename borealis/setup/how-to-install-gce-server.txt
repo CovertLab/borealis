@@ -237,6 +237,9 @@ sudo systemctl stop borealis-fireworker
 sudo shutdown -h now
 
 # * Watch the Compute Engine > VM instances page to see when this VM has fully stopped.
+# * Click on the stopped VM to open its "VM instance details" page, and
+#   remove any "Custom metadata" values that you don't want to override fields of
+#   the launchpad YAML file such as the MongoDB "host", "uri_mode", or "db".
 # * Click the disk "fireworker" (or "fireworker-0") in the Compute Engine > Disks console page.
 #   https://console.cloud.google.com/compute/disks
 # * Click "CREATE IMAGE".
