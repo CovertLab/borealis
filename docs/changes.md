@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.9.1
+* Add dnspython to requirements.txt so pymongo can access server clusters.
+* Update other pips in requirements.txt for good measure.
+
 ## v0.9.0
 * Let the GCE VM metadata override the MongoDB host, including is_uri mode.
 * Add gce.py help text for using the `-o network-interface=no-address` option to creates VMs without External IP addresses.
