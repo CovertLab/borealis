@@ -266,12 +266,12 @@ After installing the `borealis-fireworks` pip:
 $ gce -h
 usage: gce [-h] [--delete | --set-metadata | --quit-soon] [-d] [-b BASE]
            [-c COUNT] [-f FAMILY] [-l LAUNCHPAD_FILENAME]
-           [-m METADATA_KEY=VALUE,...] [-o OPTION_KEY=VALUE,...]
+           [-m METADATA_KEY=VALUE]... [-o OPTION_KEY=VALUE]...
            NAME-PREFIX
 
 Create, delete, or set metadata on a group of Google Compute Engine VMs, e.g.
 workflow workers that start up from a disk image-family. (This code also has
-an API for direct use.)
+an API for programs to call.)
 
 ...
 ```

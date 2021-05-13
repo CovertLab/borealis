@@ -53,19 +53,20 @@ DEFAULT_INSTANCE_OPTIONS = {
 DEFAULT_LPAD_YAML = 'my_launchpad.yaml'
 
 
-def _clean(token):
+def _clean_key(key):
     # type: (Any) -> str
-    """Clean the token of "=" and "," chars so it won't mess up a
-    "key=val,key=val" metadata string.
-    """
-    return re.sub(r'[=,]+', '', str(token))
+    """Clean the key so it won't mess up a "key=k=v" string."""
+    return str(key).replace('=', '_')
 
 
 def _join_metadata(metadata):
     # type: (Dict[str, Any]) -> str
-    """Join the metadata dictionary into a suitable shell token string."""
-    return ','.join(
-        '{}={}'.format(_clean(k), _clean(v))
+    """Join the metadata dictionary into a shell argument string. Use a custom
+    delimiter ||| (see `gcloud topic escaping`) so values can contain ','.
+    TODO: Check if the keys and values contain the ||| delimiter.
+    """
+    return '^|||^' + '|||'.join(
+        '{}={}'.format(_clean_key(k), v)
         for k, v in metadata.items() if v is not None)
 
 
@@ -73,15 +74,14 @@ def _options_list(options):
     # type: (dict) -> List[str]
     """Translate a dict into a list of CLI "--option=value" tokens."""
     # E.g. ["--description=fire worker", "--metadata=k1=v1,k2=v2", "--quiet"]
-    return ['--{}{}'.format(_clean(k), '' if v is None else '={}'.format(v))
+    return ['--{}{}'.format(_clean_key(k), '' if v is None else '={}'.format(v))
             for k, v in options.items()]
 
 
-def _parse_options(csv):
-    # type: (Optional[str]) -> Dict[str, str]
-    """Parse the comma-separated KEY=VALUE option strings into a dict."""
-    assignments = (csv or '').split(',')
-    pairs = [a.split('=', 2) + [''] for a in assignments]
+def _parse_options(options_list: Optional[List[str]]) -> Dict[str, str]:
+    """Parse the KEY=VALUE or KEY=k=v option strings into a dict."""
+    assignments = options_list or []
+    pairs = [a.split('=', 1) + [''] for a in assignments]  # [''] to handle the no-'=' case
     options = {p[0].strip(): p[1].strip() for p in pairs if p[0].strip()}
     return options
 
@@ -286,24 +286,27 @@ def cli():
              ' and password metadata when creating VMs (default="{}"). This'
              ' will create GCE VMs which connect to that LaunchPad db.'
              ' Use `-l ""` to skip this config file.'.format(DEFAULT_LPAD_YAML))
-    parser.add_argument('-m', '--metadata', metavar='METADATA_KEY=VALUE,...',
-        help='Comma-separated GCE metadata "KEY=VALUE" settings for creating VMs'
+    parser.add_argument('-m', '--metadata', metavar='METADATA_KEY=VALUE',
+        action='append',
+        help='A GCE metadata "KEY=VALUE" setting for creating VMs'
              ' or setting their metadata, e.g. "db=analyze" to point FireWorks'
-             ' workers to the database named `analyze`. These settings override'
+             ' workers to the database named `analyze`. Repeat as needed. These'
+             ' settings override'
              ' fields read from a LaunchPad config file.')
-    parser.add_argument('-o', '--options', metavar='OPTION_KEY=VALUE,...',
-            help='Comma-separated "KEY=VALUE" options to pass to'
-                 ' `gcloud compute instances create`, e.g. "boot-disk-size",'
-                 ' "custom-cpu", "custom-memory", "machine-type", "scopes",'
-                 ' "service-account". These options override default options'
-                 ' and the --family argument.'
-                 ' Use "network-interface=no-address" to create VMs without'
-                 ' External IP addresses. That makes them more secure but'
-                 ' you\'ll need to set up Cloud NAT (so they can access Docker'
-                 ' repositories, PyPI, ...) and Identity-Aware Proxy (IAP)'
-                 ' (so you can ssh in).'
-                 ' Options like `project` default to'
-                 ' your current gcloud configuration.')
+    parser.add_argument('-o', '--option', metavar='OPTION_KEY=VALUE',
+        action='append',
+        help='A "KEY=VALUE" option to pass to'
+             ' `gcloud compute instances create`, e.g. "boot-disk-size",'
+             ' "custom-cpu", "custom-memory", "machine-type", "scopes",'
+             ' "service-account". Repeat as needed. These options override'
+             ' defaults and the --family argument.'
+             ' Options like `project` default to'
+             ' your current gcloud configuration.'
+             ' Use "network-interface=no-address" to create VMs without'
+             ' External IP addresses. That makes them more secure but'
+             ' you\'ll need to set up Cloud NAT (so they can access Docker'
+             ' repositories, PyPI, ...) and Identity-Aware Proxy (IAP)'
+             ' (so you can ssh in).')
 
     args = parser.parse_args()
     metadata = {}
@@ -321,7 +324,7 @@ def cli():
         if args.family:
             options['image-family'] = args.family
             options['description'] = args.family + ' worker'
-        options.update(_parse_options(args.options))
+        options.update(_parse_options(args.option))
 
     if args.action == 'quit-soon':
         args.action = 'metadata'

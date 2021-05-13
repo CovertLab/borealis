@@ -1,5 +1,10 @@
 # Change Log
 
+## v0.10.0
+* Support MongoDB Atlas `host` URLs including the URL query parameters `...?retryWrites=true&w=majority`. Previously it didn't allow `=` in metadata or options.
+* Support commas in metadata and options values. So the metadata and options CLI args now take a single `KEY=VALUE` (or `KEY=k=v`) string instead of a comma-separated list `KEY=VALUE,...`. Repeat these args as needed instead of comma-separating their values.
+* Make `example_mongo_ssh.sh` take an optional HOST name arg.
+
 ## v0.9.1
 * Add dnspython to requirements.txt so pymongo can access server clusters.
 * Update other pips in requirements.txt for good measure.
