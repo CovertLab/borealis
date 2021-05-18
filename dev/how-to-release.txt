@@ -8,13 +8,26 @@ How to do a borealis-fireworks pip release
 #   V1 shell variable, below
 
 # Consider updating borealis/setup/requirements.txt, but don't
-# add dev packages like twine.
+# add dev packages like twine or flit.
 
 # Merge changes to the main branch.
+
+./make-package.sh
+
+# Push to test.pypi.org for testing
+# (see https://packaging.python.org/guides/using-testpypi/).
+twine upload --repository testpypi dist/*
+open https://test.pypi.org/project/borealis-fireworks/
+# pip install --index-url https://test.pypi.org/simple/ borealis-fireworks
+#   Optionally: --extra-index-url https://pypi.org/simple
+
+# Commit source changes.
+
+./make-package.sh
 
 V1='0.10.0'
 git tag -a -m "release $V1" "$V1" && git push && git push --tags
 
-./make-package.sh && twine upload dist/*
-
+# Push to PyPI.
+twine upload dist/*
 open https://pypi.org/project/borealis-fireworks/

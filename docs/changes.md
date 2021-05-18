@@ -1,9 +1,10 @@
 # Change Log
 
 ## v0.10.0
-* Support MongoDB Atlas `host` URLs including the URL query parameters `...?retryWrites=true&w=majority`. Previously it didn't allow `=` in metadata or options.
-* Support commas in metadata and options values. So the metadata and options CLI args now take a single `KEY=VALUE` (or `KEY=k=v`) string instead of a comma-separated list `KEY=VALUE,...`. Repeat these args as needed instead of comma-separating their values.
+* Update `startup.sh` and the installation instructions for `pyenv` changes and to install the monitoring agent.
+* The gce API and CLI now support `=` and `,` characters in metadata and options such as MongoDB `host` URLs with query parameters `...?retryWrites=true&w=majority`. Using the CLI, change `gce -m KEY=VALUE,KEY2=VAL2` to `gce -m KEY=VALUE -m KEY2=VAL2`.
 * Make `example_mongo_ssh.sh` take an optional HOST name arg.
+* Update & simplify the installation instructions to use Debian, a smaller disk, newer machine type, and no Ubuntu `snap` steps.
 
 ## v0.9.1
 * Add dnspython to requirements.txt so pymongo can access server clusters.

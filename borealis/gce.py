@@ -42,6 +42,11 @@ SCOPES = ','.join([
 # Don't put 'subnet': 'default' here since that'd interfere with the
 # `-o network-interface=no-address` option that creates VMs without
 # External IP addresses.
+#
+# The underlying API currently defaults to:
+#   machine-type=n1-standard-1
+#   boot-disk-type=pd-standard
+#   ephemeral external network-interface
 DEFAULT_INSTANCE_OPTIONS = {
     'machine-type': 'n1-standard-1',  # n1-standard-1 has 1 vCPU, 3.75 GB RAM
     'network-tier': 'PREMIUM',

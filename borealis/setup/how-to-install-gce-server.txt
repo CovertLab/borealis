@@ -21,11 +21,13 @@
 #       Logs Writer
 #       Storage Object Admin
 #       Project Viewer
-# * Decide which GCP Region and Zone you want to use. The cost varies by region.
-# * Set up a MongoDB instance in that Region and Zone using either a Google
-#   managed MongoDB service, a Compute Engine VM of your own with ordinary
-#   MongoDB installation, or a Marketplace installation
-#   https://console.cloud.google.com/marketplace/browse?q=mongodb
+# * Decide which GCP Region and Zone you want to use. Costs vary by region.
+# * Each user will need a MongoDB database. The easiest way is to have users
+#   create their own databases on Atlas
+#   (https://matsci.org/t/heres-how-to-connect-to-atlas-mongodb/4816).
+#   Alternatively, install MongoDB onto a Debian server on Compute Engine
+#   (https://docs.mongodb.com/manual/installation/), or set up a Google managed
+#   MongoDB service or a Marketplace installation.
 
 
 ## =========================================================================
@@ -38,32 +40,20 @@
 #   `gcloud compute instances create` command line.
 #     Name: fireworker
 #     Region & Zone: <where you want to run everything>
-#     Machine family/series: N1 n1-standard-1 [or other. These steps create a
-#       Disk Image. Later you can instantiate different machine types from this
-#       Disk Image.]
-#     (TODO: Since this no longer needs docker-credential-gcr, try starting with
-#       a GCE Debian disk image and dropping the steps that reinstall the gcloud
-#       SDK with docker-credential-gcr. Debian should be lighter weight and
-#       easier to enable swap space if needed.)
-#     Boot disk: New 200 GB Standard persistent disk, Ubuntu 20.04 LTS Minimal
-#       (or later).
-#       [Your needs might differ. You can resize it later but changing the OS
-#       image requires creating a new Disk Image from scratch. Do NOT pick "COS"
-#       Container-Optimized OS. COS doesn't have a package manager and is not
-#       built to install software.]
-#     Network interfaces: You can set External IP to None for better security, as
-#       long as you set up Identity-Aware Proxy (IAP) set up to be able to ssh to
-#       these VMs and Cloud NAT so these VMs can access PyPI, Docker repos, etc.
-#     Identity and API access: "Compute Engine default service account" or
-#       the "fireworker" service account.
-#     Access scopes: "Set access for each API":
-#       Cloud Debugger: Enabled [we haven't tested this but it should come in handy]
-#       Compute Engine: Read Write
-#       Service Control: Enabled [the default]
-#       Service Management: Read Write
-#       Stackdriver Logging + Monitoring + Trace: Write Only [the default]
-#       Storage: Read Write
-#   Management > Description: Fireworks worker node
+#     Machine family/series: N1 n1-standard-1 [These steps create a Disk Image.
+#       Its machine type won't affect the VM instances created from it.]
+#     Boot disk: Debian 10 (or later), new 30 GB persistent disk. [Do NOT pick
+#       "COS" Container-Optimized OS. COS doesn't have a package manager and is
+#       not built to install software. The Disk Image's boot disk type won't
+#       affect the VM instances created from it. In the future, you can increase
+#       the disk size.]
+#     Identity and API access: "fireworker" service account.
+#     Open the "Management, security, disks, networking, sole tenancy" section.
+#       Management > Description: Fireworks worker node
+#       Networking > Network interfaces: You can set External IP to None for
+#         better security from internet attackers if you set up GCP's
+#         Identity-Aware Proxy (IAP) (so you can still ssh to these VMs) and set
+#         up Cloud NAT (so these VMs can access PyPI, Docker repos, etc.).
 #   [Create]
 
 ## Connect to the GCE VM to run the setup steps, below.
@@ -73,8 +63,9 @@ sudo apt update && sudo apt upgrade && sudo apt autoremove
 
 sudo apt install -y docker.io
 sudo apt install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
-    libreadline-dev libsqlite3-dev llvm libncurses5-dev \
-    libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python-openssl nano
+    libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev \
+    libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev \
+    liblzma-dev python-openssl nano
 
 
 ## Reboot the GCE VM to ensure the apts take effect.
@@ -83,30 +74,13 @@ sudo reboot
 gcloud compute ssh fireworker
 
 
-## Reinstall gcloud per https://cloud.google.com/sdk/docs/downloads-interactive
-## so it can install updates and the docker-credential-gcr component. (The snap,
-## apt, and yum packages don't support that.) (GCR is the Google Container
-## Registry where you can store Docker Images.)
-sudo snap remove google-cloud-sdk
-
-curl https://sdk.cloud.google.com > install.sh
-sudo mkdir /usr/local/bin/sdk
-sudo chgrp ubuntu /usr/local/bin/sdk
-sudo chmod g+ws /usr/local/bin/sdk
-bash install.sh --install-dir=/usr/local/bin/sdk --disable-prompts
-
-echo '' >> .profile
-echo '. /usr/local/bin/sdk/google-cloud-sdk/path.bash.inc' >> .profile
-echo '. /usr/local/bin/sdk/google-cloud-sdk/completion.bash.inc' >> .profile
-. /usr/local/bin/sdk/google-cloud-sdk/path.bash.inc
-. /usr/local/bin/sdk/google-cloud-sdk/completion.bash.inc
-
-echo y | gcloud components install docker-credential-gcr
-
-## Put the SDK's main executables on the path for all users.
-sudo ln -s /usr/local/bin/sdk/google-cloud-sdk/bin/gcloud /usr/local/bin/
-sudo ln -s /usr/local/bin/sdk/google-cloud-sdk/bin/docker-credential-gcloud /usr/local/bin/
-sudo ln -s /usr/local/bin/sdk/google-cloud-sdk/bin/docker-credential-gcr /usr/local/bin/
+## NOTE: You might have to install the gcloud component docker-credential-gcr to
+## pull GCR Docker images. (GCR is the Google Container Registry where you can
+## store Docker Images.) If you selected Ubuntu instead of Debian, installing
+## gcloud components requires uninstalling google-cloud-sdk and reinstalling it
+## per https://cloud.google.com/sdk/docs/downloads-interactive since the Ubuntu
+## snap package doesn't support installing components or updates. See the
+## April 16, 2021 version of this file in git for instructions to do that.
 
 ## Enable the docker service.
 sudo systemctl enable docker
@@ -126,8 +100,6 @@ docker info
 ## Set up to authenticate to GCR Docker repositories.
 ## You can pass specific gcr repo names here, e.g. gcr.io,eu.gcr.io,us.gcr.io,asia.gcr.io
 echo y | gcloud auth configure-docker
-## NOTE: If Docker auth gives you trouble, you can switch to docker-credential-gcr:
-##   echo y | docker-credential-gcr configure-docker
 
 ## Pull any Docker Images you want preinstalled for faster task startup.
 ##
@@ -136,12 +108,18 @@ echo y | gcloud auth configure-docker
 ## Linux apts, Python, and pips), then preinstalling the runtime Image will
 ## save Docker Image build time as well as task startup time.
 ### Example: docker pull python:3.8.9
-### Example: docker pull gcr.io/$(gcloud config get-value core/project)/app-runtime
+### Example: docker pull gcr.io/$(gcloud config get-value core/project)/my-app-runtime
+
+
+## Install the Monitoring Agent so you can monitor memory & disk space utilization.
+curl -sSO https://dl.google.com/cloudagents/add-monitoring-agent-repo.sh
+sudo bash add-monitoring-agent-repo.sh --also-install
+sudo service stackdriver-agent start
+
 
 ## ------------------------------------------------------------------------
 ## Create and switch to the fireworker user that'll run the borealis service.
 sudo adduser --disabled-password fireworker
-
 sudo usermod -aG docker fireworker
 sudo su -l fireworker
 
@@ -150,11 +128,13 @@ echo y | gcloud auth configure-docker
 
 ## Set up the software environment for borealis-fireworker
 curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
-{
-  echo 'export PATH="$HOME/.pyenv/bin:$PATH"'
-  echo 'eval "$(pyenv init -)"'
-  echo 'eval "$(pyenv virtualenv-init -)"'; } >> ~/.bash_aliases
-source ~/.bash_aliases
+echo -e 'export PYENV_ROOT="$HOME/.pyenv"\nexport PATH="$PYENV_ROOT/bin:$PATH"\neval "$(pyenv init --path)"\n\n'"$(cat .profile)" > .profile
+echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+echo -e "alias ll='ls -l'\nalias la='ls -A'" >> ~/.bash_aliases
+
+## Logout from the fireworker account and log back in to apply these changes.
+exit
+sudo su -l fireworker
 
 mkdir ~/borealis && cd ~/borealis
 
@@ -181,10 +161,10 @@ cp ${SETUP}/example_my_launchpad.yaml my_launchpad.yaml
 
 ## Configure fireworker's my_launchpad.yaml
 #
-# Edit my_launchpad.yaml with the
-#     host:
-#     port:
-# values needed to connect to your MongoDB instance, e.g. "mongo", "27017".
+# Edit my_launchpad.yaml (e.g. using nano) so it can default to the host and
+# port to connect to the MongoDB instance you set up, if any, e.g.:
+#     host: mongo
+#     port: 27017
 #
 # (The database connection fields
 #     name:
@@ -196,12 +176,12 @@ cp ${SETUP}/example_my_launchpad.yaml my_launchpad.yaml
 # ... and optionally add settings like
 #     idle_for_rockets: 900
 #     idle_for_waiters: 3600
-# if you want to adjust how long Fireworker will idle before exiting. Fireworker
+# to adjust how long Fireworker will idle before exiting. The Fireworker service
 # will idle `idle_for_rockets` seconds (default 15 * 60) for any READY-to-run
 # rockets to appear in the queue or `idle_for_waiters` seconds (default 60 * 60,
 # >= idle_for_rockets) for WAITING rockets to become READY, that is for queued
 # rockets that are just waiting on other upstream rockets to finish. Consider
-# making that longer when your workflow contains tasks that have to wait longer
+# making it longer when your workflow contains tasks that have to wait longer
 # than that for prerequisite tasks.
 #
 # ... and optionally set
@@ -210,15 +190,14 @@ cp ${SETUP}/example_my_launchpad.yaml my_launchpad.yaml
 nano my_launchpad.yaml
 
 ## Copy the startup.sh script and the service file.
-cp ${SETUP}/startup.sh .
-cp ${SETUP}/borealis-fireworker.service .
+cp ${SETUP}/startup.sh ${SETUP}/borealis-fireworker.service .
 
 ## Logout from the fireworker account.
 exit
 
 ### ------------------------------------------------------------------------
 
-# Follow the instructions in the file you copied to
+# Follow the instructions in
 # /home/fireworker/borealis/borealis-fireworker.service
 # to set up that systemd service.
 
@@ -228,8 +207,7 @@ exit
 
 ## Start up the service and check its journal for problems:
 sudo systemctl start borealis-fireworker
-sudo journalctl -u borealis-fireworker -f
-  ## Then hit ^C to stop viewing the journal.
+sudo journalctl -u borealis-fireworker
 sudo systemctl enable borealis-fireworker
 
 ## Stop the service and the server.
@@ -237,21 +215,24 @@ sudo systemctl stop borealis-fireworker
 sudo shutdown -h now
 
 # * Watch the Compute Engine > VM instances page to see when this VM has fully stopped.
-# * Click on the stopped VM to open its "VM instance details" page, and
-#   remove any "Custom metadata" values that you don't want to override fields of
-#   the launchpad YAML file such as the MongoDB "host", "uri_mode", or "db".
-# * Click the disk "fireworker" (or "fireworker-0") in the Compute Engine > Disks console page.
-#   https://console.cloud.google.com/compute/disks
+# * Click on the stopped VM to open its "VM instance details" page.
+# * Remove any "Custom metadata" values (set by launching the VM via the gce
+#   command) such as the MongoDB "host", "uri_mode", or "db" that you don't want
+#   to override fields of my_launchpad.yaml.
+# * Click the disk "fireworker" (or "fireworker-0") in the Compute Engine > Disks
+#   console page, https://console.cloud.google.com/compute/disks
 # * Click "CREATE IMAGE".
-# * Name the image like "fireworker-v0", picking the next number in the fireworker series.
-# * Set "Family" to "fireworker"  <== MUST DO THIS. The launch-workers script will
-#   instantiate workers by the Disk Image Family name.
-# * Set "Description" to "Fireworks worker node" or some such for documentation.
-# * Click "Create".
+#   * Name: fireworker-v0  -- picking the next number in the fireworker series
+#   * Family: fireworker   <== MUST DO THIS. The launch-workers script will
+#     instantiate workers by the Disk Image Family name.
+#   * Description: Fireworks worker node  -- documentation
+#   * Click [Create].
 # * When it finishes:
-#   * Test the Disk Image.
-#   * Delete this GCE VM and its boot disk using gcloud or the console.
-#   * Consider pruning the number of "fireworker-v*" Disk Images to 2 if you have more.
+#   * Test the Disk Image by running a test workflow or start it via the gce
+#     command, ssh to it, and check its journal.
+#   * Delete the stopped "fireworker" VM (including its boot disk) using the
+#     console or the gcloud command line.
+#   * Consider pruning the number of "fireworker-v*" Disk Images to 2.
 
 
 ## =========================================================================
