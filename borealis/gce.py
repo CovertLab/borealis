@@ -320,8 +320,14 @@ def cli():
         with open(args.launchpad_filename) as f:
             yml = yaml.YAML(typ='safe')
             lpad_config = yml.load(f)  # type: dict
+
+        copy_keys = ('db', 'username', 'password')
+        if lpad_config.get('uri_mode'):
+            lpad_config['db'] = lpad_config['host'].split('/')[-1].split('?')[0]
+            copy_keys += ('host', 'uri_mode')
+        else:
             lpad_config['db'] = lpad_config.get('name')
-        metadata = data.select_keys(lpad_config, ('db', 'username', 'password'))
+        metadata = data.select_keys(lpad_config, copy_keys)
 
     metadata.update(_parse_options(args.metadata))
     options = {}

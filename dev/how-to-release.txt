@@ -25,7 +25,7 @@ open https://test.pypi.org/project/borealis-fireworks/
 
 ./make-package.sh
 
-V1='0.10.0'
+V1='0.11.0'
 git tag -a -m "release $V1" "$V1" && git push && git push --tags
 
 # Push to PyPI.

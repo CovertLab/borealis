@@ -1,5 +1,8 @@
 # Change Log
 
+## v0.11.0
+* In the `gce create` CLI command, implement LaunchPad config `uri_mode` by setting the `host`, `uri_mode`, and `db` metadata fields.
+
 ## v0.10.0
 * Update `startup.sh` and the installation instructions for `pyenv` changes and to install the monitoring agent.
 * The gce API and CLI now support `=` and `,` characters in metadata and options such as MongoDB `host` URLs with query parameters `...?retryWrites=true&w=majority`. Using the CLI, change `gce -m KEY=VALUE,KEY2=VAL2` to `gce -m KEY=VALUE -m KEY2=VAL2`.
