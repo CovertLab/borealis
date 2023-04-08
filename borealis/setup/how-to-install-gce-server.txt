@@ -107,7 +107,7 @@ echo y | gcloud auth configure-docker
 ## level Image that's common to the team (containing runtime components like
 ## Linux apts, Python, and pips), then preinstalling the runtime Image will
 ## save Docker Image build time as well as task startup time.
-### Example: docker pull python:3.8.9
+### Example: docker pull python:3.11.3
 ### Example: docker pull gcr.io/$(gcloud config get-value core/project)/my-app-runtime
 
 
@@ -138,10 +138,10 @@ sudo su -l fireworker
 
 mkdir ~/borealis && cd ~/borealis
 
-pyenv install 3.8.9
+pyenv install 3.11.3
 
-pyenv global 3.8.9
-pyenv local 3.8.9
+pyenv global 3.11.3
+pyenv local 3.11.3
 pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
 
 pyenv virtualenv fireworker
@@ -262,7 +262,7 @@ sudo systemctl stop borealis-fireworker
 sudo journalctl --vacuum-time=2d
 
 ## Pull any Docker images that you want to preload for speed.
-docker pull python:3.8.9  # or similar image(s) including your project's runtime Image
+docker pull python:3.11.3  # or similar image(s) including your project's runtime Image
 
 ## Prune Docker images:
 docker image prune

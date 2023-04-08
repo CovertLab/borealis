@@ -1,5 +1,8 @@
 # Change Log
 
+## v0.12.0
+* Update the installation instructions to use Python 3.11.3 and newer pip libraries.
+
 ## v0.11.0
 * In the `gce create` CLI command, implement LaunchPad config `uri_mode` by setting the `host`, `uri_mode`, and `db` metadata fields.
 

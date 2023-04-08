@@ -1,19 +1,21 @@
 ## Create the "fireworker" python virtual environment for development, and select it in this directory:
-#   pyenv install 3.8.9
+#   pyenv install 3.11.3
 #
-#   pyenv virtualenv 3.8.9 fireworker && pyenv local fireworker
+#   pyenv virtualenv 3.11.3 fireworker && pyenv local fireworker
 #   pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
 #   pip install -r requirements.txt && pyenv rehash
 
-# Direct dependents
-# dnspython is needed for pymongo to access server clusters.
-dnspython==2.1.0
-google-cloud-logging>=2.3.1
-google-cloud-storage>=1.37.1
-docker>=5.0.0
-FireWorks>=1.9.6
-requests>=2.25.1
-ruamel.yaml>=0.17.4
+# Direct requirements.
+# FireWorks requires pymongo; dnspython enables pymongo to access server clusters.
+# The binary extension ruamel.yaml.clib helps ruamel.yaml run faster, right?
+dnspython
+google-cloud-logging
+google-cloud-storage
+docker
+FireWorks
+requests
+ruamel.yaml
+ruamel.yaml.clib
 
 # Dev tools
 twine

@@ -282,7 +282,8 @@ class DockerTask(FiretaskBase):
         and the Docker client.
 
         NOTE: "The KeyboardInterrupt exception will be received by an arbitrary
-        thread." -- https://docs.python.org/3.8/library/_thread.html
+        thread. (When the signal module is available, interrupts always go to
+        the main thread.)" -- https://docs.python.org/3.8/library/_thread.html
         """
         name = self['name']
         logger.debug('Terminating task {} for {}...'.format(name, reason))

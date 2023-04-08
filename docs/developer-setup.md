@@ -126,7 +126,7 @@ statement to your shell `.profile` or `.bash_profile` file:
 
    Then run that `export` command or create a new shell.
 
-1. In a fresh development directory, install Python 3.8, create a Python
+1. In a fresh development directory, install Python 3.11, create a Python
 virtual environment, and install the borealis-fireworks pip.
 
 1. Create or augment your `my_launchpad.yaml` file:

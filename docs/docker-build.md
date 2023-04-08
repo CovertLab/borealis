@@ -13,7 +13,7 @@ First write a `Dockerfile` in your project directory. Example:
 # The ARG lets you pick another base Image but DON'T USE AN ALPINE base since
 # its floating point library produces different results; also
 # see https://pythonspeed.com/articles/alpine-docker-python/
-ARG from=python:3.8.6
+ARG from=python:3.8.16
 FROM ${from}
 
 # Install Linux packages.
@@ -59,7 +59,7 @@ docker build --tag application101 .
 You can base it on a different "FROM" Image like this:
 
 ```shell script
-docker build --build-arg from=python:3.8.1 --tag application101 .
+docker build --build-arg from=python:3.11.3 --tag application101 .
 ```
 
 but **don't use an Alpine base image** because its floating point library produces

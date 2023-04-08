@@ -7,12 +7,12 @@ Also see [Handy Links](handy-links.md).
 
 1. Install Python and Fireworks:
 
-   * Install Python: `pyenv install 3.8.6`
+   * Install Python: `pyenv install 3.11.3`
    * Install a Python virtual environment manager like `virtualenv`,
      `pyenv-virtualenv`, and `pyenv-virtualenvwrapper`; or `venv`
    * Create a Python virtual environment in your project directory, e.g.:
      ```shell script
-     pyenv local 3.8.6
+     pyenv local 3.11.3
      pyenv virtualenv myproject
      pyenv local myproject
      ```
@@ -27,21 +27,21 @@ Also see [Handy Links](handy-links.md).
 
 1. Setup Python for the `gcloud` and `gsutil` tools.
 
-   **Note:** `gsutil -m` is broken in Python 3.8 so use Python 3.6 or 3.7.
+   **Note:** `gsutil -m` is still broken in Python 3.8+ so use Python 3.6 or 3.7.
    ([gsutil issue #961](https://github.com/GoogleCloudPlatform/gsutil/issues/961).)
 
    Install Python 3.6 or 3.7 if you don't already have one of them, e.g.
    using `pyenv`:
 
    ```shell script
-   pyenv install 3.7.9
+   pyenv install 3.7.16
    ```
 
    Set `$CLOUDSDK_PYTHON` in your shell profile:
 
    ```shell script
    # Set the Python version for Cloud SDK.
-   export CLOUDSDK_PYTHON=$(pyenv shell 3.7.9; pyenv which python)
+   export CLOUDSDK_PYTHON=$(pyenv shell 3.7.16; pyenv which python)
    ```
 
    Then open a new shell (or run this `export` command).

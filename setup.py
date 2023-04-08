@@ -15,7 +15,7 @@ with open('README.md', 'r') as fh:
 
 setup(
     name='borealis-fireworks',
-    version='0.11.0',
+    version='0.12.0',
     packages=['borealis', 'borealis.util'],
     url='https://github.com/CovertLab/borealis',
     project_urls={
@@ -34,7 +34,7 @@ setup(
         'google-cloud-logging>=2.0.0',
         'google-cloud-storage>=1.28.0',
         'docker>=4.1.0',
-        'FireWorks>=1.9.5',
+        'FireWorks>=1.9.7',
         'requests>=2.22.0',
         'ruamel.yaml>=0.16.9',
     ],
@@ -58,6 +58,9 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
     ],
     keywords='fireworks workflow',
 )
