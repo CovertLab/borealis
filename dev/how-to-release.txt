@@ -30,3 +30,6 @@ git tag -a -m "release $V1" "$V1" && git push && git push --tags
 # Push to PyPI.
 twine upload dist/*
 open https://pypi.org/project/borealis-fireworks/
+
+echo "Version $V1 has been published on PyPI and has a git tag."
+echo "Please make a GitHub Release from that tag."
