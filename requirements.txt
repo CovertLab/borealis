@@ -2,20 +2,24 @@
 #   pyenv install 3.11.3
 #
 #   pyenv virtualenv 3.11.3 fireworker && pyenv local fireworker
-#   pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel
-#   pip install -r requirements.txt && pyenv rehash
+#   pip install --upgrade pip
+#   pip install --upgrade -r requirements.txt && pyenv rehash
 
-# Direct requirements.
-# FireWorks requires pymongo; dnspython enables pymongo to access server clusters.
-# The binary extension ruamel.yaml.clib helps ruamel.yaml run faster, right?
-dnspython
+# Installers
+pip
+setuptools
+virtualenv
+virtualenvwrapper
+virtualenv-clone
+wheel
+
+# Direct requirements
 google-cloud-logging
 google-cloud-storage
 docker
 FireWorks
 requests
 ruamel.yaml
-ruamel.yaml.clib
 
 # Dev tools
 twine

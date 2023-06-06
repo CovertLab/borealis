@@ -149,12 +149,9 @@ pyenv local fireworker
 pip install --upgrade pip setuptools virtualenv virtualenvwrapper virtualenv-clone wheel borealis-fireworks
 pyenv rehash
 
-## Find the borealis setup files that we'll need to copy.
+## Ask the borealis fireworker for its setup directory.
 SETUP=$(fireworker --setup)
 echo The borealis-fireworker "setup" files are in: $SETUP
-
-## Install the pip versions selected for borealis-fireworks which might be different.
-pip install -r ${SETUP}/requirements.txt
 
 ## Copy the launchpad yaml file from the borealis setup directory.
 cp ${SETUP}/example_my_launchpad.yaml my_launchpad.yaml
@@ -270,8 +267,7 @@ docker image prune
 ## Update the fireworker pips:
 sudo su -l fireworker
 cd ~/borealis
-pip install --upgrade pip setuptools wheel borealis-fireworks
-pip install -r $(fireworker --setup)/requirements.txt
+pip install --upgrade -r $(fireworker --setup)/requirements.txt
 pyenv rehash
 
 ## Disconnect:
